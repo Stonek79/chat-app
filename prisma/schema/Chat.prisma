@@ -1,0 +1,63 @@
+// This is Chat model schema file
+
+/**
+ * Модель Чата.
+ * Представляет как приватный (один-на-один), так и групповой чат.
+ * Примеры использования:
+ * - Создание нового группового чата: `prisma.chat.create({ data: { name: "Название группы", isGroup: true, participants: { create: [{ userId: "id1" }, { userId: "id2" }] } } })`
+ * - Создание приватного чата (без имени, isGroup=false): `prisma.chat.create({ data: { isGroup: false, participants: { create: [{ userId: "id1" }, { userId: "id2" }] } } })`
+ * - Получение всех участников чата: `prisma.chat.findUnique({ where: { id }, include: { participants: { include: { user: true } } } })`
+ * - Получение истории сообщений чата: `prisma.chat.findUnique({ where: { id }, include: { messages: { orderBy: { createdAt: 'asc' }, include: { sender: true } } } })` (fetchChatHistory)
+ * - Пример "Ephemeral Chat" (временный чат): можно добавить поле `expiresAt: DateTime?` и логику для его удаления.
+ */
+model Chat {
+    id          String  @id @default(cuid())
+    name        String? // Название чата (для групповых чатов)
+    isGroupChat Boolean @default(false) // Является ли чат групповым
+    // Если это не групповой чат, а личный (peer-to-peer), то `name` может быть null
+    // или автоматически генерироваться на клиенте из имен участников.
+
+    // Опционально: URL иконки/аватара чата
+    avatarUrl String?
+
+    // Опционально: ID пользователя, создавшего чат (если это важно отслеживать)
+    // createdById String?
+    // createdBy   User?     @relation("CreatedChats", fields: [createdById], references: [id])
+    // Закомментировано, так как создатель может быть определен через ChatParticipant с ролью 'admin' или 'creator'.
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Опционально: Сообщение о последней активности в чате для сортировки и отображения
+    // Это может быть ID последнего сообщения или специальное поле с временной меткой.
+    // Обновляется триггером или при создании нового сообщения.
+    // lastActivityAt DateTime? @default(now()) // Можно обновлять при каждом новом сообщении
+    // lastMessageId  String? // ID последнего сообщения для быстрого доступа
+
+    // Связи
+    // Участники этого чата
+    participants ChatParticipant[] @relation
+    // Сообщения в этом чате
+    messages     Message[]         @relation
+
+    // Опциональная связь с последним сообщением (для сортировки чатов)
+    // lastMessage  Message?          @relation("LastMessageInChat", fields: [lastMessageId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+    // Закомментировано, так как это можно вычислить или управлять через `lastActivityAt` или запрос к сообщениям.
+
+    // Комментарии к модели:
+    // Модель Chat представляет собой диалог или групповой чат.
+    // - `isGroupChat`: Определяет, является ли чат диалогом между двумя пользователями или групповым.
+    // - `name`, `avatarUrl`: Для кастомизации групповых чатов.
+    // - Связи `participants` и `messages` являются ключевыми для получения данных чата.
+
+    // Пример использования:
+    // - Создать новый групповой чат: prisma.chat.create({ data: { name: "Проект Альфа", isGroupChat: true } })
+    // - Создать личный чат (имя можно не указывать): prisma.chat.create({ data: { isGroupChat: false } })
+    // - Получить все сообщения чата: prisma.chat.findUnique({ where: { id: 'chatId' } }).messages({ orderBy: { createdAt: 'asc' } })
+    // - Получить всех участников чата: prisma.chat.findUnique({ where: { id: 'chatId' } }).participants({ include: { user: true } })
+
+    // Индексация:
+    // @@index([createdById]) // Если поле createdById используется
+    // @@index([lastActivityAt]) // Если используется для сортировки чатов
+    @@index([updatedAt]) // Часто чаты сортируют по времени последнего обновления/сообщения
+}

@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  next-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app # Для разработки, чтобы изменения кода отражались без пересборки контейнера
+      - /app/node_modules # Исключаем node_modules из монтирования, чтобы использовать те, что внутри контейнера
+      - /app/.next # Исключаем .next
+    environment:
+      NODE_ENV: development # В разработке можно development, для production - production
+      # Добавьте другие переменные окружения здесь
+      # POSTGRES_USER: user
+      # POSTGRES_PASSWORD: password
+      # POSTGRES_DB: chat_app_db
+      # DATABASE_URL: postgresql://user:password@postgres:5432/chat_app_db
+      # REDIS_URL: redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - chat_network
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: alexstone # Замените на ваше имя пользователя
+      POSTGRES_PASSWORD: 0u2nvb # Замените на ваш пароль
+      POSTGRES_DB: chat_app_db
+    networks:
+      - chat_network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - chat_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  chat_network:
+    driver: bridge 

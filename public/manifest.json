@@ -1,0 +1,10 @@
+{
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "name": "Chat App",
+  "short_name": "ChatApp",
+  "description": "Современное PWA-чат-приложение на базе Next.js"
+} 

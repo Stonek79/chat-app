@@ -1,0 +1,60 @@
+// This is Message model schema file
+
+model Message {
+    id                     String             @id @default(cuid())
+    chatId                 String
+    senderId               String
+    content                String // Зашифрованное содержимое или обычный текст
+    mediaUrl               String? // URL изображения или видео, если сообщение содержит изображение или видео
+    contentType            MessageContentType @default(TEXT) // например, "text", "image/jpeg", "e2e/aes-gcm-text"
+    createdAt              DateTime           @default(now())
+    updatedAt              DateTime           @updatedAt
+    deletedAt              DateTime? // Для мягкого удаления
+    isEdited               Boolean            @default(false) // Для отслеживания редактирования сообщения
+    status                 String             @default("sent") // например, "sent", "delivered", "read"
+    replyToMessageId       String? // ID сообщения, на которое дан ответ
+    forwardedFromMessageId String? // ID сообщения, которое было переслано
+
+    // Связи
+    // Чат, к которому принадлежит сообщение (обратная связь в Chat.messages)
+    chat          Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    // Пользователь, отправивший сообщение (обратная связь в User.sentMessages)
+    sender        User      @relation("MessagesSentByUser", fields: [senderId], references: [id], onDelete: Cascade)
+    replyTo       Message?  @relation("Replies", fields: [replyToMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+    replies       Message[] @relation("Replies")
+    forwardedFrom Message?  @relation("Forwards", fields: [forwardedFromMessageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+    forwards      Message[] @relation("Forwards")
+    User          User?     @relation(fields: [userId], references: [id])
+    userId        String?
+
+    readReceipts MessageReadReceipt[] // для отслеживания прочтений
+
+    // Индексация
+    @@index([chatId, createdAt]) // Очень частый запрос: получить сообщения чата, отсортированные по времени
+    @@index([senderId])
+    @@index([replyToMessageId])
+}
+
+model MessageReadReceipt {
+    id        String   @id @default(cuid())
+    messageId String
+    userId    String
+    readAt    DateTime @default(now())
+
+    message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+    user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([messageId, userId]) // Каждый пользователь может прочитать сообщение только один раз
+    @@index([messageId])
+    @@index([userId])
+}
+
+enum MessageContentType {
+    TEXT
+    IMAGE
+    VIDEO
+    AUDIO
+    FILE
+    SYSTEM
+    URL
+}

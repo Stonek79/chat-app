@@ -1,0 +1,43 @@
+// This is SessionMessage model schema file
+// Эта модель может понадобиться для хранения сессионных ключей E2E шифрования
+// или другой информации, специфичной для сессии пользователя в контексте чата.
+
+model SessionMessage {
+    id          String   @id @default(cuid())
+    // Отправитель сообщения сессии (ID пользователя)
+    senderId    String
+    // Получатель сообщения сессии (ID пользователя)
+    receiverId  String
+    // Тип сообщения сессии (например, "offer", "answer", "candidate", "key_exchange_init", "key_exchange_ack")
+    // Позволяет клиентам понимать, как обрабатывать `payload`.
+    messageType String
+    // Полезная нагрузка сообщения сессии.
+    // Может быть JSON строкой, содержащей SDP, ICE кандидатов, части ключей и т.д.
+    // Для E2E шифрования ключей или чувствительных данных, этот payload должен быть зашифрован
+    // с использованием установленного безопасного канала или публичных ключей получателей.
+    payload     String // Может быть JSON
+    createdAt   DateTime @default(now())
+
+    // Связи
+    sender   User @relation("SessionMessagesSentByUser", fields: [senderId], references: [id], onDelete: Cascade)
+    receiver User @relation("SessionMessagesReceivedByUser", fields: [receiverId], references: [id], onDelete: Cascade)
+
+    // Комментарии к модели:
+    // Модель SessionMessage предназначена для передачи сигнальных или временных данных между пользователями,
+    // которые не являются частью основной истории чата.
+    // Примеры использования:
+    // - WebRTC сигнализация (offers, answers, ICE candidates).
+    // - Обмен эфемерными ключами для сеансов E2E шифрования.
+    // - Передача команд управления сессией (например, "завершить звонок").
+    // Эти сообщения обычно не сохраняются надолго и могут быть удалены после завершения сессии или по истечении времени.
+    // Важно: Если `payload` содержит чувствительные данные, он должен быть зашифрован.
+
+    // Пример использования:
+    // - Отправка WebRTC offer: prisma.sessionMessage.create({ data: { senderId: 'u1', receiverId: 'u2', messageType: 'webrtc_offer', payload: '{ "sdp": "..." }' } })
+    // - Получение всех кандидатов для пользователя: prisma.sessionMessage.findMany({ where: { receiverId: 'u2', messageType: 'webrtc_candidate' }, orderBy: { createdAt: 'asc' } })
+
+    @@index([senderId])
+    @@index([receiverId])
+    @@index([messageType])
+    @@index([createdAt])
+}

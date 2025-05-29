@@ -1,0 +1,54 @@
+// This is User model schema file
+
+/**
+ * Модель Пользователя.
+ * Представляет зарегистрированного пользователя в системе.
+ * Примеры использования:
+ * - Получение пользователя по ID: `prisma.user.findUnique({ where: { id } })`
+ * - Получение пользователя по email: `prisma.user.findUnique({ where: { email } })`
+ * - Создание нового пользователя: `prisma.user.create({ data: { ... } })`
+ * - Получение всех чатов пользователя (через ChatParticipant):
+ * `prisma.user.findUnique({ where: { id }, include: { chatParticipants: { include: { chat: true } } } })`
+ */
+
+// Определяем enum для ролей
+enum UserRole {
+    USER
+    ADMIN
+}
+
+model User {
+    id                       String    @id @default(cuid())
+    username                 String    @unique // Уникальное имя пользователя для входа и отображения
+    email                    String    @unique // Электронная почта для входа и уведомлений
+    hashedPassword           String? // Может быть null если используется OAuth или другой метод входа
+    avatarUrl                String? // URL аватара пользователя
+    publicKey                String? // Публичный ключ пользователя для E2E шифрования (в формате JWK или PEM, хранится как строка)
+    createdAt                DateTime  @default(now())
+    updatedAt                DateTime  @updatedAt
+    lastSeenAt               DateTime? // Время последнего онлайна
+    isOnline                 Boolean   @default(false) // Статус онлайн/оффлайн
+    isVerified               Boolean   @default(false) // Статус верификации email
+    verificationToken        String?   @unique // Токен для верификации email
+    verificationTokenExpires DateTime? // Время истечения токена верификации email
+    resetPasswordToken       String?   @unique // Токен для сброса пароля
+    resetPasswordExpires     DateTime? // Время истечения токена сброса пароля
+    role                     UserRole  @default(USER) // Новое поле для глобальной роли
+
+    // Связи
+    // Участие пользователя в чатах (обратная связь в ChatParticipant.user)
+    chatParticipants        ChatParticipant[]
+    // Сообщения, отправленные пользователем (обратная связь в Message.sender)
+    messagesSent            Message[]         @relation("MessagesSentByUser")
+    sessionMessagesSent     SessionMessage[]  @relation("SessionMessagesSentByUser")
+    sessionMessagesReceived SessionMessage[]  @relation("SessionMessagesReceivedByUser")
+
+    // Комментарии к модели:
+    // - `publicKey`: Важен для E2E шифрования.
+    // - `isVerified`, `verificationToken`: Для подтверждения email.
+    // - `resetPasswordToken`, `resetPasswordExpires`: Для восстановления пароля.
+    // - `lastSeenAt`, `isOnline`: Для отображения статуса пользователя.
+    Message Message[]
+
+    MessageReadReceipt MessageReadReceipt[]
+}

@@ -1,0 +1,10 @@
+export const LOGIN_PAGE_ROUTE = '/login';
+export const REGISTER_PAGE_ROUTE = '/register';
+export const HOME_PAGE_ROUTE = '/';
+export const ADMIN_DASHBOARD_ROUTE = '/admin/dashboard';
+export const PUBLIC_ROUTES = [HOME_PAGE_ROUTE];
+export const GUEST_ONLY_ROUTES = [LOGIN_PAGE_ROUTE, REGISTER_PAGE_ROUTE];
+export const ADMIN_ROUTES_PREFIX = '/admin';
+export const PROFILE_PAGE_ROUTE = '/profile';
+export const CHAT_PAGE_ROUTE = '/chat';
+export const ADMIN_PAGE_ROUTE = '/admin';
