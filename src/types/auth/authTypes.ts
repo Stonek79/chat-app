@@ -1,4 +1,5 @@
 import { UserRole } from '../user';
+import type { JWTPayload as JoseJWTPayload } from 'jose';
 
 // Тип для данных пользователя, которые хранятся на клиенте
 export interface ClientUser {
@@ -37,4 +38,33 @@ export interface AuthContextType {
     checkAuthStatus: () => Promise<void>;
     updateUser?: (payload: UpdateUserPayload) => Promise<ClientUser | null>;
     clearAuthError: () => void;
+}
+
+
+export interface AuthenticatedUser {
+    userId: string;
+    email: string;
+    username: string;
+    role: UserRole;
+}
+
+export interface DecodedTokenInternal {
+    userId: string;
+    email: string;
+    username: string;
+    role: UserRole;
+    iat: number;
+    exp: number;
+}
+
+/**
+ * Расширенный интерфейс для JWTPayload из jose, включающий специфичные для приложения поля.
+ * Аналогично UserJWTPayload из middleware.ts
+ */
+export interface AppJWTPayload extends JoseJWTPayload {
+    userId: string;
+    email: string;
+    username: string;
+    role: UserRole;
+    userAvatar?: string;
 }

@@ -1,8 +1,6 @@
-import { Prisma } from '@prisma/client';
-import type { MessageReadReceipt, MessageContentType } from '@prisma/client';
+import { Prisma, type MessageContentType, type MessageReadReceipt } from '@prisma/client';
 import type { Chat, PrismaChatParticipant } from '../chat';
-import type { User } from '../user';
-import type { BasicUser } from '../user';
+import type { BasicUser, User } from '../user';
 
 export { MessageReadReceipt, MessageContentType };
 
@@ -15,7 +13,7 @@ export type Message = Prisma.MessageGetPayload<{
 
 // Тип для участника чата с выбранными полями пользователя
 export type ChatParticipantWithUser = PrismaChatParticipant & {
-    user: Pick<User, 'id' | 'username' | 'avatarUrl'>;
+    user: Pick<User, 'id' | 'username' | 'avatarUrl' | 'email' | 'role' >;
 };
 
 // Тип для сообщения со всеми необходимыми включениями (детализированное сообщение)
@@ -38,12 +36,12 @@ export type MessageReadReceiptDisplay = Pick<MessageReadReceipt, 'userId' | 'rea
  * Содержит только необходимые поля.
  */
 export interface DisplayMessage {
-    id: string; // ID сообщения
+    id?: string; // ID сообщения
     chatId: string; // ID чата
     sender: BasicUser; // Отправитель (облегченная версия)
     content: string; // Текстовое содержимое
     createdAt: Date; // Время создания (всегда Date)
-    updatedAt: Date; // Время обновления (всегда Date)
+    updatedAt?: Date | null; // Время обновления (всегда Date)
     contentType: MessageContentType; // Тип контента
     mediaUrl?: string | null; // URL для медиа-контента
     readReceipts?: MessageReadReceiptDisplay[]; // Статусы прочтения (опционально для отображения)

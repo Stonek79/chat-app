@@ -1,3 +1,4 @@
+import { UserRole } from '../user';
 import { Message } from '../message';
 
 export type { Chat, ChatParticipant as PrismaChatParticipant } from '@prisma/client';
@@ -7,6 +8,9 @@ export interface ChatParticipant {
     id: string;
     username: string;
     avatarUrl?: string | null;
+    role: UserRole;
+    email: string;
+    
     // Можно добавить онлайн-статус, если он будет использоваться здесь
     // isOnline?: boolean;
 }

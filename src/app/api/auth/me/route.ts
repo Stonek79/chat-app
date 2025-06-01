@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { handleApiError, ApiError, prisma } from '@/lib';
-import { UserRole, type ClientUser } from '@/types';
+import { type ClientUser, UserRole } from '@/types';
 import { AUTH_TOKEN_COOKIE_NAME } from '@/constants';
 
 interface DecodedToken {
@@ -85,19 +85,7 @@ export async function GET(req: NextRequest) {
             return errResponse;
         }
 
-        // Проверка и приведение типа для роли
         const userRole = decoded.role as UserRole;
-        if (!Object.values(UserRole).includes(userRole)) {
-            console.error(`Невалидное значение роли из JWT: ${decoded.role}`);
-            // Можно решить удалить токен или вернуть ошибку, указывающую на проблему с токеном
-            throw new ApiError('Невалидные данные в токене (роль)', 401);
-        }
-
-        // Можно дополнительно проверить, существует ли пользователь в БД, хотя JWT должен быть достаточным
-        // const userFromDb = await prisma.user.findUnique({ where: { id: decoded.userId } });
-        // if (!userFromDb) {
-        //   throw new ApiError('Пользователь из токена не найден в БД', 401);
-        // }
 
         const clientUser: ClientUser = {
             id: decoded.userId,

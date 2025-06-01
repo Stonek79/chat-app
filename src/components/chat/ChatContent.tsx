@@ -20,11 +20,7 @@ interface ChatContentProps {
     isAdmin: boolean;
 }
 
-export const ChatContent = ({
-    chatId,
-    currentUserId,
-    isAdmin,
-}: ChatContentProps) => {
+export const ChatContent = ({ chatId, currentUserId, isAdmin }: ChatContentProps) => {
     const { messages, participants, sendMessage, isConnected, chatName } = useChat({ chatId });
     const [newMessage, setNewMessage] = useState('');
 
@@ -68,9 +64,8 @@ export const ChatContent = ({
                     </Typography>
                 )}
                 {messages.map(message => (
-                    <React.Fragment key={message.id}>
+                    <div key={message.id}>
                         <ChatListItem
-                            key={message.id}
                             message={message}
                             currentUserId={currentUserId}
                             isAdmin={isAdmin}
@@ -81,7 +76,7 @@ export const ChatContent = ({
                                 console.log('Delete click', message); /* TODO */
                             }}
                         />
-                    </React.Fragment>
+                    </div>
                 ))}
                 {/* TODO: Добавить автоскролл вниз при новых сообщениях */}
             </Paper>
@@ -109,7 +104,9 @@ export const ChatContent = ({
                     Отправить
                 </Button>
             </Box>
-            <Typography variant="caption" sx={{mt: 2}}>Участники: {participants.map(p => p.userEmail).join(', ')}</Typography>
+            <Typography variant="caption" sx={{ mt: 2 }}>
+                Участники: {participants.map(p => p.username).join(', ')}
+            </Typography>
         </Container>
     );
 };

@@ -1,14 +1,10 @@
-// This is ChatParticipant model schema file
-
 model ChatParticipant {
     id       String    @id @default(cuid())
     chatId   String
     userId   String
     joinedAt DateTime  @default(now())
     leftAt   DateTime?
-    // Роль участника в чате (например, 'admin', 'member')
-    // Может быть расширена для более сложных систем разрешений
-    role     String    @default("member") // TODO: Рассмотреть использование Enum для ролей, если Prisma их поддерживает лучше в будущем или для валидации на уровне приложения.
+    role     UserRole  @default(USER)
 
     // Зашифрованный ключ сессии для данного пользователя в данном чате.
     // Ключ шифруется публичным ключом пользователя.

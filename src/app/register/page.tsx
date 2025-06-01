@@ -3,7 +3,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { RegisterForm } from '@/components/auth';
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
     return (
         <Container component="main" maxWidth="xs">
             <Box

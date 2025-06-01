@@ -8,9 +8,11 @@ interface LoginPageProps {
     searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export default function LoginPage({ searchParams }: LoginPageProps) {
-    const returnTo = typeof searchParams.returnTo === 'string' ? searchParams.returnTo : undefined;
-    const registrationSuccess = searchParams.registrationSuccess === 'true';
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+    const params = await searchParams;
+    console.log('LoginPage: searchParams', params);
+    const returnTo = typeof params?.returnTo === 'string' ? params?.returnTo : undefined;
+    const registrationSuccess = params?.registrationSuccess === 'true';
 
     // Блок для отображения "Перенаправление..." если пользователь уже залогинен,
     // теперь не нужен, так как middleware должен выполнить редирект ДО загрузки этой страницы.

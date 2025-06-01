@@ -1,14 +1,19 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getCurrentUser, AuthenticatedUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma/prisma';
+import { getCurrentUser } from '@/lib';
+import { prisma } from '@/lib';
 import { handleApiError, ApiError } from '@/lib/api/apiErrorHandler';
-import { ClientChat, ChatParticipant, ChatLastMessage, UserRole } from '@/types';
 import type {
+    ClientChat,
+    ChatParticipant,
+    ChatLastMessage,
+    AuthenticatedUser,
     Chat as PrismaChat,
-    ChatParticipant as PrismaChatParticipant,
+    PrismaChatParticipant,
     User as PrismaUser,
     Message as PrismaMessage,
-} from '@prisma/client';
+} from '@/types';
+
+import { UserRoleEnum } from '@/constants';
 
 /**
  * Расширенный тип для Prisma Chat, включающий связанные данные участников и последних сообщений,
@@ -16,7 +21,7 @@ import type {
  */
 type PrismaChatWithDetails = PrismaChat & {
     participants: (PrismaChatParticipant & {
-        user: Pick<PrismaUser, 'id' | 'username' | 'avatarUrl'>;
+        user: Pick<PrismaUser, 'id' | 'username' | 'avatarUrl' | 'email'>;
     })[];
     messages: (PrismaMessage & {
         sender: Pick<PrismaUser, 'id' | 'username'>;
@@ -46,11 +51,13 @@ const mapPrismaChatToClientChat = (
         id: p.user.id,
         username: p.user.username,
         avatarUrl: p.user.avatarUrl,
+        role: p.role,
+        email: p.user.email,
     }));
 
     // Для личных чатов определяем имя и аватар на основе другого участника
     if (!chatDb.isGroupChat) {
-        const otherParticipant = chatDb.participants.find(p => p.userId !== currentUserId);
+        const otherParticipant = chatDb.participants.find(p => p.user.id !== currentUserId);
         if (otherParticipant && otherParticipant.user) {
             chatName = otherParticipant.user.username;
             chatAvatarUrl = otherParticipant.user.avatarUrl;
@@ -74,8 +81,8 @@ const mapPrismaChatToClientChat = (
     const lastMessageClient: ChatLastMessage | undefined = lastMessageData
         ? {
               id: lastMessageData.id,
-              content: lastMessageData.content, // Следует убедиться, что контент не слишком длинный для превью
-              createdAt: lastMessageData.createdAt.toISOString(),
+              content: lastMessageData.content,
+              createdAt: lastMessageData.createdAt,
               senderId: lastMessageData.sender.id,
               senderUsername: lastMessageData.sender.username,
           }
@@ -100,11 +107,12 @@ const mapPrismaChatToClientChat = (
 export async function GET(req: NextRequest) {
     try {
         const currentUser: AuthenticatedUser | null = await getCurrentUser(req);
+
         if (!currentUser) {
             throw new ApiError('Пользователь не аутентифицирован', 401);
         }
 
-        const isAdmin = currentUser.role === UserRole.ADMIN;
+        const isAdmin = currentUser.role === UserRoleEnum.ADMIN;
         let rawChatsFromDb: PrismaChatWithDetails[] = [];
 
         // Общая конфигурация для включения связанных данных (участники и сообщения)
@@ -116,20 +124,18 @@ export async function GET(req: NextRequest) {
                             id: true,
                             username: true,
                             avatarUrl: true,
+                            email: true,
                         },
                     },
+                    // Для ChatParticipant все поля будут доступны по умолчанию, включая role
                 },
             },
             messages: {
                 orderBy: { createdAt: 'desc' as const },
                 take: 1,
                 include: {
-                    sender: {
-                        select: {
-                            id: true,
-                            username: true,
-                        },
-                    },
+                    sender: true, // Изменено: загружаем полного пользователя
+                    readReceipts: true, // Добавлено: загружаем readReceipts
                 },
             },
         };
@@ -152,7 +158,7 @@ export async function GET(req: NextRequest) {
             // Фильтруем возможные null значения, если чат по какой-то причине отсутствует
             rawChatsFromDb = userChatParticipantRecords
                 .map(cpRecord => cpRecord.chat)
-                .filter(Boolean) as PrismaChatWithDetails[];
+                .filter(Boolean);
         }
 
         if (!rawChatsFromDb || rawChatsFromDb.length === 0) {

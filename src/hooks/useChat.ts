@@ -1,42 +1,61 @@
-// src/hooks/useChat.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Socket } from 'socket.io-client';
+import { connectSocket, fetchChat } from '@/lib';
 import {
-    getChatSocket,
-    connectChatSocket,
-    emitJoinChat,
-    emitLeaveChat,
-    emitSendMessage,
-    onReceiveMessage,
-    onUserJoined,
-    onUserLeft,
-} from '@/sockets';
+    CLIENT_EVENT_JOIN_CHAT,
+    CLIENT_EVENT_LEAVE_CHAT,
+    CLIENT_EVENT_SEND_MESSAGE,
+    SERVER_EVENT_RECEIVE_MESSAGE,
+    SERVER_EVENT_USER_JOINED,
+    SERVER_EVENT_USER_LEFT,
+    SOCKET_EVENT_CONNECT,
+    SOCKET_EVENT_DISCONNECT,
+} from '@/constants';
 
 import type {
-    ClientChat,
+    AppSocket,
     MessageContentType,
     SocketMessagePayload,
     SocketUserPresencePayload,
     ClientSendMessagePayload,
+    Message,
+    BasicUser,
 } from '@/types';
 import { useAuth } from './useAuth';
-import { fetchChat } from '@/lib/fetch/fetchChat';
-
-export interface UseChatOptions {
-    chatId: string | null;
-}
 
 export interface UseChatReturn {
-    messages: SocketMessagePayload[]; // Временно возвращаем SocketMessagePayload[]
+    messages: SocketMessagePayload[];
     participants: SocketUserPresencePayload[];
-    sendMessage: (content: string, contentType?: string, mediaUrl?: string) => void; // contentType временно string
+    sendMessage: (content: string, contentType?: MessageContentType, mediaUrl?: string) => void;
     isConnected: boolean;
     chatName: string | null;
     isLoadingChatDetails: boolean;
     initialMessagesLoaded: boolean;
 }
 
-export const useChat = ({ chatId }: UseChatOptions): UseChatReturn => {
+const normalizeDbMessage = (dbMessage: Message): SocketMessagePayload => {
+    const basicSender: BasicUser = {
+        id: dbMessage.sender.id,
+        username: dbMessage.sender.username,
+        email: dbMessage.sender.email,
+        role: dbMessage.sender.role,
+        avatarUrl: dbMessage.sender.avatarUrl,
+    };
+
+    return {
+        id: dbMessage.id,
+        chatId: dbMessage.chatId,
+        sender: basicSender,
+        content: dbMessage.content,
+        createdAt: dbMessage.createdAt,
+        updatedAt: dbMessage.updatedAt,
+        contentType: dbMessage.contentType,
+        mediaUrl: dbMessage.mediaUrl,
+        readReceipts: dbMessage.readReceipts,
+        deletedAt: dbMessage.deletedAt,
+    };
+};
+
+export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn => {
     const { user } = useAuth();
     const [messages, setMessages] = useState<SocketMessagePayload[]>([]);
     const [participants, setParticipants] = useState<SocketUserPresencePayload[]>([]);
@@ -44,120 +63,185 @@ export const useChat = ({ chatId }: UseChatOptions): UseChatReturn => {
     const [chatName, setChatName] = useState<string | null>(null);
     const [isLoadingChatDetails, setIsLoadingChatDetails] = useState<boolean>(false);
     const [initialMessagesLoaded, setInitialMessagesLoaded] = useState<boolean>(false);
-    const socketRef = useRef<Socket | null>(null);
+
+    const socketRef = useRef<AppSocket | null>(null);
 
     useEffect(() => {
-        socketRef.current = getChatSocket();
-        if (socketRef.current) {
-            if (!socketRef.current.connected) connectChatSocket();
-            setIsConnected(socketRef.current.connected);
-            const handleConnect = () => setIsConnected(true);
-            const handleDisconnect = () => setIsConnected(false);
-            socketRef.current.on('connect', handleConnect);
-            socketRef.current.on('disconnect', handleDisconnect);
+        socketRef.current = connectSocket();
+
+        const currentSocket = socketRef.current;
+
+        if (currentSocket) {
+            setIsConnected(currentSocket.connected);
+
+            const handleConnect = () => {
+                console.log('[useChat] Socket connected');
+                setIsConnected(true);
+                if (chatId) {
+                    console.log(`[useChat] Re-joining chat room ${chatId} after connect.`);
+                    currentSocket.emit(CLIENT_EVENT_JOIN_CHAT, chatId);
+                }
+            };
+
+            const handleDisconnect = (reason: string) => {
+                console.log(`[useChat] Socket disconnected, reason: ${reason}`);
+                setIsConnected(false);
+            };
+
+            currentSocket.on(SOCKET_EVENT_CONNECT, handleConnect);
+            currentSocket.on(SOCKET_EVENT_DISCONNECT, handleDisconnect);
+
+            if (currentSocket.connected && chatId) {
+                console.log(`[useChat] Socket already connected, joining chat room ${chatId}.`);
+                currentSocket.emit(CLIENT_EVENT_JOIN_CHAT, chatId);
+            }
+
             return () => {
-                socketRef.current?.off('connect', handleConnect);
-                socketRef.current?.off('disconnect', handleDisconnect);
+                console.log('[useChat] Cleaning up socket connection effect.');
+                currentSocket.off(SOCKET_EVENT_CONNECT, handleConnect);
+                currentSocket.off(SOCKET_EVENT_DISCONNECT, handleDisconnect);
             };
         }
-    }, []);
+    }, [chatId]);
 
     useEffect(() => {
         const currentSocket = socketRef.current;
         if (chatId && currentSocket) {
-            const initChat = async () => {
-                setIsLoadingChatDetails(true);
-                setInitialMessagesLoaded(false);
-                setChatName(null);
-                setMessages([]);
-                setParticipants([]);
-                try {
-                    // Предполагаем, что fetchChat возвращает ClientChat, где messages это SocketMessagePayload[] или совместимый тип
-                    const chatDetails: Partial<
-                        ClientChat & { messages: SocketMessagePayload[] }
-                    > | null = await fetchChat(chatId);
+            setIsLoadingChatDetails(true);
+            setInitialMessagesLoaded(false);
+            setChatName(null);
+            setMessages([]);
+            setParticipants([]);
+
+            fetchChat(chatId)
+                .then(chatDetails => {
                     if (chatDetails) {
-                        setChatName(chatDetails.name ?? 'Имя чата не найдено');
+                        setChatName(chatDetails.name ?? `Чат ${chatId}`);
+
                         if (chatDetails.messages && Array.isArray(chatDetails.messages)) {
-                            setMessages(chatDetails.messages);
+                            const normalizedMessages = chatDetails.messages.map(normalizeDbMessage);
+                            setMessages(normalizedMessages);
+                            setInitialMessagesLoaded(true);
+                        } else {
+                            setMessages([]);
+                            setInitialMessagesLoaded(true);
                         }
+                    } else {
+                        setMessages([]);
                         setInitialMessagesLoaded(true);
                     }
-                } catch (error) {
-                    console.error('Ошибка загрузки деталей чата в useChat:', error);
-                    setChatName('Ошибка загрузки имени чата');
-                }
-                setIsLoadingChatDetails(false);
-                if (currentSocket.connected) {
-                    emitJoinChat(chatId);
-                } else {
-                    const onConnect = () => {
-                        emitJoinChat(chatId);
-                        currentSocket.off('connect', onConnect);
-                    };
-                    currentSocket.on('connect', onConnect);
-                }
-            };
-            initChat();
-            const handleReceivedMessage = (payload: SocketMessagePayload) => {
-                if (payload.chatId === chatId) {
-                    // Здесь не будет сложной трансформации, просто добавляем payload
-                    setMessages(prev => [...prev, payload]);
-                }
-            };
-            const unsubscribeMessage = onReceiveMessage(handleReceivedMessage);
 
-            const handleUserJoined = (data: SocketUserPresencePayload) => {
-                if (data.chatId === chatId) {
+                    if (chatDetails?.members) {
+                        console.log('[useChat] Chat members:', chatDetails.members);
+                        setParticipants(
+                            chatDetails.members.map(m => ({
+                                chatId,
+                                userId: m.id,
+                                username: m.username,
+                                avatarUrl: m.avatarUrl,
+                                role: m.role,
+                                email: m.email,
+                            }))
+                        );
+                    }
+                })
+                .catch(error => {
+                    console.error('[useChat] Error fetching chat details:', error);
+                    setChatName('Ошибка загрузки чата');
+                    setMessages([]);
+                    setInitialMessagesLoaded(true);
+                })
+                .finally(() => {
+                    setIsLoadingChatDetails(false);
+                });
+
+            if (currentSocket.connected) {
+                console.log(
+                    `[useChat] Joining chat room ${chatId}. Socket ID: ${currentSocket.id}`
+                );
+                currentSocket.emit(CLIENT_EVENT_JOIN_CHAT, chatId);
+            }
+
+            const handleReceiveMessage = (payload: SocketMessagePayload) => {
+                console.log('[useChat] Received SERVER_EVENT_RECEIVE_MESSAGE:', payload);
+                if (payload.chatId === chatId) {
+                    setMessages(prevMessages => [...prevMessages, payload]);
+                    if (!initialMessagesLoaded) setInitialMessagesLoaded(true);
+                }
+            };
+            const handleUserJoined = (payload: SocketUserPresencePayload) => {
+                if (payload.chatId === chatId) {
                     setParticipants(prev =>
-                        prev.find(p => p.userId === data.userId) ? prev : [...prev, data]
+                        prev.find(p => p.userId === payload.userId) ? prev : [...prev, payload]
                     );
                 }
             };
-            const unsubscribeUserJoined = onUserJoined(handleUserJoined);
-
-            const handleUserLeft = (data: SocketUserPresencePayload) => {
-                if (data.chatId === chatId) {
-                    setParticipants(prev => prev.filter(p => p.userId !== data.userId));
+            const handleUserLeft = (payload: SocketUserPresencePayload) => {
+                if (payload.chatId === chatId) {
+                    setParticipants(prev => prev.filter(p => p.userId !== payload.userId));
                 }
             };
-            const unsubscribeUserLeft = onUserLeft(handleUserLeft);
+
+            currentSocket.on(SERVER_EVENT_RECEIVE_MESSAGE, handleReceiveMessage);
+            currentSocket.on(SERVER_EVENT_USER_JOINED, handleUserJoined);
+            currentSocket.on(SERVER_EVENT_USER_LEFT, handleUserLeft);
 
             return () => {
-                if (currentSocket.connected) emitLeaveChat(chatId);
-                unsubscribeMessage();
-                unsubscribeUserJoined();
-                unsubscribeUserLeft();
-                setChatName(null);
-                setMessages([]);
-                setParticipants([]);
-                setInitialMessagesLoaded(false);
+                console.log(`[useChat] Leaving chat room ${chatId} and unsubscribing from events.`);
+                if (currentSocket.connected) {
+                    currentSocket.emit(CLIENT_EVENT_LEAVE_CHAT, chatId);
+                }
+                currentSocket.off(SERVER_EVENT_RECEIVE_MESSAGE, handleReceiveMessage);
+                currentSocket.off(SERVER_EVENT_USER_JOINED, handleUserJoined);
+                currentSocket.off(SERVER_EVENT_USER_LEFT, handleUserLeft);
             };
+        } else if (!chatId) {
+            setChatName(null);
+            setMessages([]);
+            setParticipants([]);
+            setInitialMessagesLoaded(false);
         }
-    }, [chatId, user, isConnected]);
+    }, [chatId, user]);
 
     const sendMessage = useCallback(
-        (
-            content: string,
-            contentType?: string /* Prisma MessageContentType */,
-            mediaUrl?: string
-        ) => {
+        (content: string, contentType: MessageContentType = 'TEXT', mediaUrl?: string) => {
             const currentSocket = socketRef.current;
             if (chatId && user && currentSocket?.connected) {
-                // ClientSendMessagePayload.contentType ожидает MessageContentType (Prisma enum)
-                // или string, если мы не можем предоставить enum.
-                // Для временного упрощения, оставим как есть, но это нужно будет согласовать
-                // с определением ClientSendMessagePayload (сейчас он ожидает MessageContentType)
                 const payload: ClientSendMessagePayload = {
                     chatId,
                     content,
-                    contentType: contentType as MessageContentType, // Временное приведение, если ClientSendMessagePayload ожидает MessageContentType
+                    contentType,
                     mediaUrl,
                 };
-                emitSendMessage(payload);
+                currentSocket.emit(CLIENT_EVENT_SEND_MESSAGE, payload, ack => {
+                    if (ack && typeof ack === 'object') {
+                        const response = ack as {
+                            success: boolean;
+                            messageId?: string;
+                            error?: string;
+                        };
+                        if (response.success && response.messageId) {
+                            console.log(
+                                `[useChat] Message sent successfully, ID: ${response.messageId}`
+                            );
+                        } else {
+                            console.error(`[useChat] Failed to send message: ${response.error}`);
+                        }
+                    } else if (ack) {
+                        console.warn(
+                            '[useChat] Received ack for sent message with unexpected format:',
+                            ack
+                        );
+                    } else {
+                        console.log(
+                            '[useChat] Message sent, no acknowledgement received from server.'
+                        );
+                    }
+                });
             } else {
                 console.warn(
-                    'Сообщение не отправлено: нет chatId, пользователя или сокет не подключен.'
+                    '[useChat] Message not sent: no chatId, user, or socket not connected.',
+                    { chatId, userExists: !!user, socketConnected: currentSocket?.connected }
                 );
             }
         },

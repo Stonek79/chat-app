@@ -31,7 +31,7 @@ export function LoginForm({
         return () => {
             auth.clearAuthError?.();
         };
-    }, [auth.clearAuthError]); // Убрал auth из зависимостей, оставил только clearAuthError
+    }, [auth.clearAuthError]);
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -81,7 +81,7 @@ export function LoginForm({
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     autoFocus
-                    error={!!auth.authError} // Передаем ошибку для подсветки поля
+                    error={!!auth.authError}
                     id="email-login"
                 />
                 <PasswordField
@@ -89,7 +89,7 @@ export function LoginForm({
                     onChange={e => setPassword(e.target.value)}
                     id="password-login"
                     autoCompletePolicy="current-password"
-                    error={!!auth.authError} // Передаем ошибку для подсветки поля
+                    error={!!auth.authError}
                 />
                 <AuthErrorAlert />
                 <SubmitButton isLoading={auth.isLoading} loadingText="Вход...">

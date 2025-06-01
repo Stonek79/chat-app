@@ -23,8 +23,8 @@
 ```
 /chat-app
 ├── project.md              # Трекер с целями, структурой и статусами
-├── Dockerfile
-├── docker-compose.yml      # nextjs, postgres, redis
+├── Dockerfile              # Dockerfile для Next.js приложения
+├── docker-compose.yml      # nextjs, socket-server, postgres, redis
 ├── next.config.mjs         # с плагином next-pwa (или .js)
 ├── tsconfig.json
 ├── package.json
@@ -45,6 +45,15 @@
 │   ├── icons/              # PWA-иконки (например, icon-192x192.png, icon-512x512.png)
 │   └── manifest.json       # Манифест PWA
 │   #└── sw.js               # Service Worker (если кастомный, иначе генерируется next-pwa)
+├── socket-server/          # <--- НОВАЯ ДИРЕКТОРИЯ ДЛЯ ВЫДЕЛЕННОГО СЕРВЕРА SOCKET.IO
+│   ├── Dockerfile          # Dockerfile для Socket.IO сервера
+│   ├── package.json        # package.json для Socket.IO сервера
+│   ├── tsconfig.json       # tsconfig.json для Socket.IO сервера
+│   └── src/
+│       └── server.ts       # Основной файл Socket.IO сервера
+│       └── middlewares/    # Middleware для Socket.IO (например, authMiddleware.ts)
+│       └── namespaces/     # Логика неймспейсов Socket.IO (например, chatNamespace.ts)
+│       └── ...             # Другие модули сервера
 └── src/
     ├── app/                # App Router
     │   ├── layout.tsx      # Общий layout, навигация
@@ -54,7 +63,6 @@
     │   │   └── page.tsx    # UI чата (Server + Client Components)
     │   ├── admin/          # Админ-панель
     │   │   ├── layout.tsx  # Общий layout админки
-    │   │   ├── page.tsx    # Главная админки
     |   |   └── ...         # Другие страницы админки
     │   ├── login/          # Страница входа
     │   │   └── page.tsx
@@ -78,11 +86,11 @@
     │   └── ChatSettingsModal.tsx
     ├── lib/                # Библиотеки и утилиты
     │   ├── prisma.ts       # Инициализация Prisma Client
-    │   ├── redis.ts        # Инициализация Redis Client + pub/sub
-    │   └── crypto.ts       # Утилиты для E2E-шифрования (Web Crypto API)
+    │   ├── redis.ts        # Инициализация Redis Client + pub/sub (может использоваться и Next.js, и socket-server)
+    │   ├── crypto.ts       # Утилиты для E2E-шифрования (Web Crypto API)
+    │   └── socket.ts       # <--- КЛИЕНТСКАЯ ОБЕРТКА ДЛЯ SOCKET.IO
     ├── hooks/              # Кастомные React Hooks (например, useChat, useAuth)
     ├── store/              # Управление состоянием клиента (например, Zustand)
-    ├── sockets/            # Логика Socket.IO (инициализация сервера, клиентские обертки)
     ├── utils/              # Вспомогательные утилиты (например,        Zod-валидация, date-fns, helpers)
     └── types/              # Все общие типы (например User, Message, Chat и т.п.)
 ```
@@ -137,7 +145,7 @@
     *   [x] Настроить `next.config.mjs` с плагином `next-pwa`.
     *   [x] Добавить `public/manifest.json` и предусмотреть место для иконок PWA.
     *   [x] Создать `Dockerfile` для сборки и запуска приложения.
-    *   [x] Создать `docker-compose.yml` для сервисов Next.js, PostgreSQL, Redis.
+    *   [x] Создать `docker-compose.yml` для сервисов Next.js, PostgreSQL, Redis (будет дополнено для socket-server).
     *   [x] Подготовить `.env.example` для переменных окружения.
     *   [x] Настроить ESLint и Prettier.
     *   [x] Настроить Husky pre-commit хуки для автоматической проверки и форматирования кода.
@@ -170,7 +178,7 @@
 5.  **[x] Настройка Redis Client (Pub/Sub):**
     *   [x] Установлен пакет `ioredis`.
     *   [x] Настроен `redisClient` (`src/lib/redis.ts`) для подключения к Redis (используя `REDIS_URL` из `.env`).
-    *   [ ] (Отложено) Интегрировать с Socket.IO адаптером (`@socket.io/redis-adapter`).
+    *   [ ] (Пересмотрено в Этапе 4) Интегрировать с Socket.IO адаптером (`@socket.io/redis-adapter`).
 6.  **Обновление `project.md`:**
     *   [x] Отметить задачи этого этапа как выполненные.
 
@@ -195,20 +203,34 @@
     *   [x] Установить TTL сессии (JWT и cookie) на 14 дней.
     *   [~] Создать Server Component-заглушку для `admin/dashboard` (без логики approve/deny).
 
-### Этап 4: Базовая функциональность чатов (Socket.IO, Redis)
+### Этап 4: Базовая функциональность чатов (Миграция на выделенный Socket.IO сервер, Redis)
 
-*   **Статус:** В процессе (Серверная часть Socket.IO настроена)
-*   **Задачи:**
-    *   [x] Настроить Socket.IO сервер (`src/sockets/server/socketHandler.ts`, инициализация через API route `src/pages/api/socketio.ts`).
-    *   [x] Настроить Redis client и pub/sub (`src/lib/redis/redis.ts` экспортирует `pubClient`, `subClient`) и интегрировать `@socket.io/redis-adapter`.
-    *   [x] Создать Socket.IO namespace `/chat` (`src/sockets/server/namespaces/chatNamespace.ts`).
-    *   [x] Реализовать middleware для JWT аутентификации для Socket.IO подключений к неймспейсу `/chat` (`src/sockets/server/middlewares/authMiddleware.ts`).
-    *   [x] Реализовать базовое подключение/отключение клиентов к неймспейсу `/chat` с логированием.
-    *   [~] Реализовать отправку/получение простых текстовых сообщений в реальном времени (базовая логика событий `sendMessage`/`receiveMessage` на сервере есть, без сохранения в БД).
-    *   [ ] Создать базовый UI для списка чатов и окна чата (клиентская часть).
-    *   [ ] Интегрировать Zustand для управления состоянием на клиенте (`store/`) (клиентская часть).
-    *   [ ] Создать хук `useChat` (клиентская часть).
-    *   [ ] Использовать константы для имен событий Socket.IO (`src/constants/socketEvents.ts`).
+*   **Статус:** В процессе
+*   **Задачи (после миграции на выделенный сервер):**
+    *   **Подготовка и миграция существующей логики:**
+        *   [ ] **Удалить** старую реализацию Socket.IO сервера (`src/sockets/server/`, `src/sockets/client/` (если применимо), и части `src/sockets/index.ts`).
+        *   [x] **Создать структуру** для выделенного Socket.IO сервера в `socket-server/`.
+        *   [x] **Инициализировать Node.js/TypeScript проект** в `socket-server/` (`package.json`, `tsconfig.json`).
+    *   **Реализация выделенного Socket.IO сервера (`socket-server/`):**
+        *   [x] Написать базовую логику Socket.IO сервера в `socket-server/src/server.ts`.
+        *   [x] Создать `Dockerfile` для сборки и запуска `socket-server`.
+        *   [x] Реализовать Socket.IO namespace `/chat` на выделенном сервере (в `socket-server/src/server.ts`).
+        *   [x] Реализовать middleware для JWT аутентификации для Socket.IO подключений к неймспейсу `/chat` на выделенном сервере (в `socket-server/src/middlewares/authMiddleware.ts`).
+        *   [x] Интегрировать Redis adapter (`@socket.io/redis-adapter`) с выделенным Socket.IO сервером.
+        *   [x] Реализовать базовое подключение/отключение клиентов к неймспейсу `/chat` с логированием на выделенном сервере.
+        *   [x] Реализовать отправку/получение простых текстовых сообщений в реальном времени на выделенном Socket.IO сервере (события `sendMessage`/`receiveMessage`), пока без сохранения в БД.
+        *   [ ] **Проверить и настроить пути импорта** (`paths` в `socket-server/tsconfig.json`) для `#/constants` и `#/types` или локализовать эти ресурсы.
+    *   **Адаптация Next.js клиента:**
+        *   [ ] **Создать/Обновить** клиентскую обертку `src/lib/socket.ts` для подключения к выделенному Socket.IO серверу (URL через `NEXT_PUBLIC_SOCKET_URL`, передача JWT токена).
+        *   [ ] **Определить/Обновить** типизацию для клиентского сокета (`src/types/socket.ts` или аналогичный файл с `ServerToClientEvents` и `ClientToServerEvents`).
+        *   [ ] **Адаптировать** React-компоненты и хук `useChat` (`src/hooks/useChat.ts`) для работы с новой клиентской оберткой Socket.IO.
+        *   [x] Настроить `.env.local` с `NEXT_PUBLIC_SOCKET_URL` для локальной разработки (задача пользователя).
+    *   **Оркестрация Docker:**
+        *   [x] Обновить `docker-compose.yml` для включения и конфигурации нового сервиса `socket-server`.
+    *   **Общие задачи (после миграции):**
+        *   [ ] Создать базовый UI для списка чатов и окна чата (клиентская часть).
+        *   [ ] Интегрировать Zustand для управления состоянием на клиенте (`store/`) (клиентская часть).
+        *   [x] Использовать константы для имен событий Socket.IO (`src/constants/socketEvents.ts`).
 
 ### Этап 5: Модели данных и API для чатов
 

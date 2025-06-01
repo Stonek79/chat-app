@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, ReactNode, useCallback } from 'react';
+import { useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthContext } from '@/contexts';
 import { ClientUser, LoginCredentials, RegisterCredentials, UpdateUserPayload } from '@/types';
@@ -23,6 +23,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const [authError, setAuthError] = useState<string | null>(null);
     const router = useRouter();
 
+    const fetchOptions: RequestInit = {
+        cache: 'no-store',
+        credentials: 'include',
+    };
+
     const clearAuthError = useCallback(() => {
         setAuthError(null);
     }, []);
@@ -31,7 +36,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setIsLoading(true);
         clearAuthError();
         try {
-            const response = await fetch(API_AUTH_ME_ROUTE);
+            const response = await fetch(API_AUTH_ME_ROUTE, fetchOptions);
+
             if (response.ok) {
                 const data = await response.json();
                 if (data.user) {
@@ -52,23 +58,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     useEffect(() => {
         checkAuthStatus();
-    }, [checkAuthStatus]);
-
-    useEffect(() => {
-        const handleFocus = () => {
-            // Проверяем статус аутентификации при получении фокуса окном,
-            // чтобы синхронизировать состояние между вкладками.
-            console.log('Window focused, checking auth status.');
-            checkAuthStatus();
-        };
-
-        window.addEventListener('focus', handleFocus);
-
-        // Очистка слушателя при размонтировании компонента
-        return () => {
-            window.removeEventListener('focus', handleFocus);
-        };
-    }, [checkAuthStatus]); // checkAuthStatus включен в зависимости, т.к. он используется
+    }, []);
 
     const login = async (
         credentials: LoginCredentials,
@@ -83,6 +73,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(credentials),
+                ...fetchOptions,
             });
             const data = await response.json();
             if (response.ok && data.user) {
@@ -111,7 +102,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setIsLoading(true);
         clearAuthError();
         try {
-            await fetch(API_AUTH_LOGOUT_ROUTE, { method: 'POST' });
+            await fetch(API_AUTH_LOGOUT_ROUTE, { method: 'POST', ...fetchOptions });
         } catch (error) {
             console.error('Ошибка при вызове /api/auth/logout на клиенте:', error);
         }
@@ -129,6 +120,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(credentials),
+                ...fetchOptions,
             });
             const data = await response.json();
             if (response.ok) {
@@ -164,6 +156,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload),
+                ...fetchOptions,
             });
             const data = await response.json();
             if (response.ok && data.user) {
@@ -188,18 +181,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     };
 
-    const value = {
-        user,
-        isLoading,
-        authError,
-        setAuthError,
-        login,
-        logout,
-        register,
-        checkAuthStatus,
-        updateUser,
-        clearAuthError,
-    };
+    const value = useMemo(
+        () => ({
+            user,
+            isLoading,
+            authError,
+            setAuthError,
+            login,
+            logout,
+            register,
+            checkAuthStatus,
+            updateUser,
+            clearAuthError,
+        }),
+        [
+            user,
+            isLoading,
+            authError,
+            setAuthError,
+            login,
+            logout,
+            register,
+            checkAuthStatus,
+            updateUser,
+            clearAuthError,
+        ]
+    );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

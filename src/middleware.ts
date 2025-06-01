@@ -36,6 +36,8 @@ interface UserJWTPayload extends JWTPayload {
     username: string;
     /** Роль пользователя (например, 'USER' или 'ADMIN'). */
     role: string; // Роль из токена USER | ADMIN
+    /** Аватарка пользователя */
+    userAvatar: string;
 }
 
 /**
@@ -47,12 +49,17 @@ interface UserJWTPayload extends JWTPayload {
 async function verifyAndDecodeToken(token: string): Promise<UserJWTPayload | null> {
     const JWT_SECRET_KEY = process.env.JWT_SECRET;
 
+    console.log('JWT_SECRET_KEY', JWT_SECRET_KEY);
+
     if (!JWT_SECRET_KEY) {
         console.error('JWT_SECRET is not set in environment variables for middleware.');
         return null;
     }
     try {
         const secret = new TextEncoder().encode(JWT_SECRET_KEY);
+
+        console.log('SECRET', secret);
+
         const { payload } = await jwtVerify(token, secret);
         return payload as UserJWTPayload;
     } catch (error: unknown) {
@@ -88,12 +95,13 @@ export async function middleware(request: NextRequest) {
     const decodedToken = token ? await verifyAndDecodeToken(token) : null;
     const isAuthenticated = !!decodedToken;
     const userRole = decodedToken?.role;
-
+    
     // Логика для аутентифицированных пользователей
     if (isAuthenticated) {
         // Если аутентифицированный пользователь пытается зайти на гостевой маршрут (login/register)
         // или на корневую страницу (которая теперь WelcomePageContent)
         if (GUEST_ONLY_ROUTES.includes(pathname) || pathname === '/') {
+            
             return NextResponse.redirect(new URL(CHAT_PAGE_ROUTE, origin));
         }
 

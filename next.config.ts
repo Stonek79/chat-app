@@ -18,9 +18,7 @@ const pwaConfig = {
 
 const nextConfig: NextConfig = {
     reactStrictMode: true,
-    // Другие ваши настройки Next.js
-    // например, experimental: { turbo: true }, для Turbopack
-    // output: 'standalone', // для Docker
+    output: 'standalone', // для Docker
 };
 
 // Оборачиваем основную конфигурацию Next.js в конфигурацию PWA

@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma/prisma';
-import { getCurrentUser, AuthenticatedUser } from '@/lib/auth';
-import { handleApiError, ApiError } from '@/lib/api/apiErrorHandler';
+import { getCurrentUser, prisma, handleApiError, ApiError } from '@/lib';
 import {
     ClientChat,
     ChatParticipant as ClientChatParticipantType,
     ChatLastMessage,
-    UserRole,
     ChatWithDetails,
+    AuthenticatedUser,
 } from '@/types';
+import { UserRoleEnum } from '@/constants';
 
 interface GetChatParams {
     params: {
@@ -23,7 +22,7 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             throw new ApiError('Пользователь не аутентифицирован', 401);
         }
 
-        const { chatId } = params;
+        const { chatId } = await params;
         const limitParam = req.nextUrl.searchParams.get('limit');
         const limit = limitParam ? parseInt(limitParam, 10) : 50;
 
@@ -35,7 +34,7 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             throw new ApiError('Необходим ID чата', 400);
         }
 
-        const isAdmin = currentUser.role === UserRole.ADMIN;
+        const isAdmin = currentUser.role === UserRoleEnum.ADMIN;
 
         const participantRecord = await prisma.chatParticipant.findUnique({
             where: {
@@ -60,6 +59,8 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
                                 id: true,
                                 username: true,
                                 avatarUrl: true,
+                                email: true,
+                                role: true,
                             },
                         },
                     },
@@ -89,6 +90,8 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
                 id: p.user.id,
                 username: p.user.username,
                 avatarUrl: p.user.avatarUrl,
+                role: p.role,
+                email: p.user.email,
             })
         );
 
@@ -111,7 +114,7 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             ? {
                   id: lastMessageData.id,
                   content: lastMessageData.content,
-                  createdAt: lastMessageData.createdAt.toISOString(),
+                  createdAt: lastMessageData.createdAt,
                   senderId: lastMessageData.sender.id,
                   senderUsername: lastMessageData.sender.username,
               }

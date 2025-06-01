@@ -10,34 +10,34 @@ import Box from '@mui/material/Box';
 import { useRouter, usePathname } from 'next/navigation';
 import { CHAT_PAGE_ROUTE } from '@/constants';
 
+const getChatIdFromPathname = (currentPathname: string): string | null => {
+    // Убедимся, что CHAT_PAGE_ROUTE оканчивается без слеша для корректного разделения
+    const baseRoute = CHAT_PAGE_ROUTE.endsWith('/')
+        ? CHAT_PAGE_ROUTE.slice(0, -1)
+        : CHAT_PAGE_ROUTE;
+    if (currentPathname.startsWith(baseRoute + '/')) {
+        const segments = currentPathname.split('/');
+        // Индекс сегмента с ID чата зависит от структуры CHAT_PAGE_ROUTE
+        // Если CHAT_PAGE_ROUTE = '/chat', то ID будет segments[2]
+        // Если CHAT_PAGE_ROUTE = '/main/chat', то ID будет segments[3]
+        const baseSegmentsCount = baseRoute.split('/').filter(Boolean).length; // Считаем непустые сегменты в базовом роуте
+        if (segments.length > baseSegmentsCount + 1 && segments[baseSegmentsCount + 1]) {
+            return segments[baseSegmentsCount + 1];
+        }
+    }
+    return null;
+};
+
 interface SidebarProps {
     initialUser: ClientUser;
-    chats: ClientChat[];
     children: ReactNode;
+    chats: ClientChat[];
 }
 
-export function Sidebar({ initialUser, chats, children }: SidebarProps) {
+export function Sidebar({ initialUser, children, chats }: SidebarProps) {
     const displayUser = initialUser;
     const router = useRouter();
     const pathname = usePathname();
-
-    const getChatIdFromPathname = (currentPathname: string): string | null => {
-        // Убедимся, что CHAT_PAGE_ROUTE оканчивается без слеша для корректного разделения
-        const baseRoute = CHAT_PAGE_ROUTE.endsWith('/')
-            ? CHAT_PAGE_ROUTE.slice(0, -1)
-            : CHAT_PAGE_ROUTE;
-        if (currentPathname.startsWith(baseRoute + '/')) {
-            const segments = currentPathname.split('/');
-            // Индекс сегмента с ID чата зависит от структуры CHAT_PAGE_ROUTE
-            // Если CHAT_PAGE_ROUTE = '/chat', то ID будет segments[2]
-            // Если CHAT_PAGE_ROUTE = '/main/chat', то ID будет segments[3]
-            const baseSegmentsCount = baseRoute.split('/').filter(Boolean).length; // Считаем непустые сегменты в базовом роуте
-            if (segments.length > baseSegmentsCount + 1 && segments[baseSegmentsCount + 1]) {
-                return segments[baseSegmentsCount + 1];
-            }
-        }
-        return null;
-    };
 
     const [selectedChatId, setSelectedChatId] = useState<string | null>(() => {
         const chatIdFromUrl = getChatIdFromPathname(pathname);
@@ -92,7 +92,6 @@ export function Sidebar({ initialUser, chats, children }: SidebarProps) {
 
     const groupChannels = chats.filter(chat => chat.isGroupChat);
     const directMessages = chats.filter(chat => !chat.isGroupChat);
-    console.log('directMessages', directMessages);
 
     return (
         <Box sx={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>

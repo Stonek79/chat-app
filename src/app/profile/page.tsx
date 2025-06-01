@@ -1,4 +1,4 @@
-import { getCurrentUserFromSessionCookie } from '@/lib/auth/session';
+import { getCurrentUserFromSessionCookie } from '@/lib';
 import { redirect } from 'next/navigation';
 import { LOGIN_PAGE_ROUTE } from '@/constants';
 import { ClientUser } from '@/types';

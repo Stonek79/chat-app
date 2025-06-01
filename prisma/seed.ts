@@ -112,7 +112,7 @@ async function main() {
       chatId: groupChat1.id,
       senderId: user1.id,
       content: 'Всем привет! Как продвигается работа над проектом?',
-      contentType: 'text',
+      contentType: 'TEXT',
     },
   });
   await prisma.message.create({
@@ -120,7 +120,7 @@ async function main() {
       chatId: groupChat1.id,
       senderId: adminUser.id,
       content: 'Привет, Alice! Идет полным ходом. Дедлайн скоро!',
-      contentType: 'text',
+      contentType: 'TEXT',
     },
   });
 
@@ -130,7 +130,7 @@ async function main() {
       chatId: groupChat2.id,
       senderId: user2.id,
       content: 'Смотрите, какой милый котик!',
-      contentType: 'text', // Позже можно добавить contentType: 'image/png' и content: 'url_to_image'
+      contentType: 'TEXT', // Позже можно добавить contentType: 'image/png' и content: 'url_to_image'
     },
   });
    await prisma.message.create({
@@ -138,7 +138,7 @@ async function main() {
       chatId: groupChat2.id,
       senderId: user1.id,
       content: 'Ого, прелесть какая!',
-      contentType: 'text',
+      contentType: 'TEXT',
     },
   });
 
@@ -148,7 +148,7 @@ async function main() {
       chatId: privateChat.id,
       senderId: user1.id,
       content: 'Привет, Bob! Как дела?',
-      contentType: 'text',
+      contentType: 'TEXT',
     },
   });
   await prisma.message.create({
@@ -156,7 +156,7 @@ async function main() {
       chatId: privateChat.id,
       senderId: user2.id,
       content: 'Привет, Alice! Все отлично, спасибо!',
-      contentType: 'text',
+      contentType: 'TEXT',
     },
   });
   console.log('Created messages.');
