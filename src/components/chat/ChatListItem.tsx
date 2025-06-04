@@ -37,13 +37,15 @@ export function ChatListItem({
 
     const isSystemMessage = message.contentType === 'SYSTEM';
 
+    const modifyMessageLimit = new Date(message.createdAt).getTime() + (10 * 60 * 1000)
+
     const canModifyMessage = () => {
         if (message.deletedAt) return false;
         if (isSystemMessage) return false;
         if (isAdmin) return true;
         if (isCurrentUser) {
-            const now = new Date();
-            return now <= new Date(message.createdAt.getTime() + 10 * 60 * 1000);
+            const now = new Date().getTime();
+            return now <= modifyMessageLimit;
         }
         return false;
     };

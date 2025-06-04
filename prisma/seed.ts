@@ -78,21 +78,21 @@ async function main() {
   // Alice и Admin в "Проект Феникс"
   await prisma.chatParticipant.createMany({
     data: [
-      { userId: user1.id, chatId: groupChat1.id, role: 'member' },
-      { userId: adminUser.id, chatId: groupChat1.id, role: 'admin' }, // Admin - админ этого чата
+      { userId: user1.id, chatId: groupChat1.id, role: 'USER' },
+      { userId: adminUser.id, chatId: groupChat1.id, role: 'ADMIN' }, // Admin - админ этого чата
     ],
   });
 
   // Bob и Admin в "Любители котиков"
   await prisma.chatParticipant.createMany({
     data: [
-      { userId: user2.id, chatId: groupChat2.id, role: 'member' },
-      { userId: adminUser.id, chatId: groupChat2.id, role: 'member' },
+      { userId: user2.id, chatId: groupChat2.id, role: 'USER' },
+      { userId: adminUser.id, chatId: groupChat2.id, role: 'USER' },
     ],
   });
   // Alice тоже в "Любители котиков"
    await prisma.chatParticipant.create({
-    data: { userId: user1.id, chatId: groupChat2.id, role: 'member' },
+    data: { userId: user1.id, chatId: groupChat2.id, role: 'USER' },
   });
 
 
