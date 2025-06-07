@@ -1,103 +1,102 @@
-// // src/lib/redis.ts
-// // import { createClient, RedisClientType } from 'redis';
+'use server';
 
-// /**
-//  * Модуль для инициализации и экспорта клиента Redis.
-//  * Будет использоваться для кэширования, Socket.IO pub/sub и других задач.
-//  */
+import IORedis from 'ioredis';
+import type { RedisOptions } from 'ioredis';
 
-// import IORedis from 'ioredis';
+const redisUrl = process.env.REDIS_URL;
 
-// // URL для подключения к Redis. Берется из переменных окружения.
-// // Пример: redis://localhost:6379 или redis://redis-user:redis-password@redis-host:6379
-// const redisUrl = process.env.REDIS_URL;
+if (!redisUrl) {
+    console.error(
+        'CRITICAL: Missing REDIS_URL environment variable. Redis clients will not be initialized.'
+    );
+    // В зависимости от критичности Redis для Next.js части, можно выбросить ошибку
+    // throw new Error('CRITICAL: Missing REDIS_URL environment variable.');
+}
 
-// if (!redisUrl) {
-//     console.error(
-//         'CRITICAL: Missing REDIS_URL environment variable. Redis clients (pub/sub) will not be initialized. Socket.IO will likely not work correctly in a multi-instance setup.'
-//     );
-//     // Для чат-приложения с Socket.IO адаптером, Redis критичен.
-//     // Можно было бы выбросить ошибку, чтобы остановить запуск приложения,
-//     // если Redis абсолютно необходим для старта.
-//     // throw new Error('CRITICAL: Missing REDIS_URL environment variable.');
-// }
+const defaultRedisOptions: RedisOptions = {
+    maxRetriesPerRequest: 3,
+    enableReadyCheck: true,
+    // Опции для переподключения (ioredis управляет этим по умолчанию, но можно настроить)
+    // retryStrategy: (times) => {
+    //   const delay = Math.min(times * 50, 2000);
+    //   return delay;
+    // },
+    // tls: redisUrl && !redisUrl.includes('localhost') ? { rejectUnauthorized: false } : undefined, // Пример для TLS
+};
 
-// // Создаем основной клиент Redis.
-// // Опции можно расширить по необходимости (например, для обработки переподключений, таймаутов и т.д.)
-// // Типизация для опций берется из самого ioredis.
-// const redisOptions: import('ioredis').RedisOptions = {
-//     maxRetriesPerRequest: 3, // Ограничим количество попыток для команд
-//     enableReadyCheck: true, // Ждать готовности перед отправкой команд
-//     // Для TLS можно добавить:
-//     // tls: { rejectUnauthorized: false } // Зависит от вашей конфигурации Redis
-//     // Опции для переподключения (ioredis управляет этим по умолчанию, но можно настроить)
-//     // retryStrategy: (times) => {
-//     //   const delay = Math.min(times * 50, 2000); // example: 50ms, 100ms, 150ms ... up to 2s
-//     //   return delay;
-//     // },
-// };
+let redisClient: IORedis | null = null;
+let redisPublisher: IORedis | null = null;
+let redisSubscriber: IORedis | null = null;
 
-// let redisClient: IORedis | null = null;
-// let pubClient: IORedis | null = null;
-// let subClient: IORedis | null = null;
+if (redisUrl) {
+    redisClient = new IORedis(redisUrl, defaultRedisOptions);
+    redisPublisher = new IORedis(redisUrl, {
+        ...defaultRedisOptions,
+        connectionName: 'nextjs-publisher',
+    }); // Отдельный клиент для публикации
+    redisSubscriber = new IORedis(redisUrl, {
+        ...defaultRedisOptions,
+        connectionName: 'nextjs-subscriber',
+    }); // Отдельный клиент для подписки
 
-// if (redisUrl) {
-//     redisClient = new IORedis(redisUrl, redisOptions);
-//     pubClient = new IORedis(redisUrl, redisOptions); // Отдельный клиент для публикации
-//     subClient = new IORedis(redisUrl, redisOptions); // Отдельный клиент для подписки
+    const clients = [
+        { name: 'NextJS Main RedisClient', client: redisClient },
+        { name: 'NextJS Redis Publisher', client: redisPublisher },
+        { name: 'NextJS Redis Subscriber', client: redisSubscriber },
+    ];
 
-//     const clients = [
-//         { name: 'main RedisClient', client: redisClient },
-//         { name: 'Redis PubClient', client: pubClient },
-//         { name: 'Redis SubClient', client: subClient },
-//     ];
+    clients.forEach(({ name, client }) => {
+        if (client) {
+            client.on('connect', () => {
+                console.log(`Successfully connected ${name} to Redis.`);
+            });
 
-//     clients.forEach(({ name, client }) => {
-//         client.on('connect', () => {
-//             console.log(`Successfully connected ${name} to Redis.`);
-//         });
+            client.on('error', err => {
+                console.error(`${name} connection error:`, err);
+            });
 
-//         client.on('error', err => {
-//             console.error(`${name} connection error:`, err);
-//             // Здесь можно добавить логику для обработки критических ошибок подключения
-//         });
+            client.on('ready', () => {
+                console.log(`${name} is ready.`);
+            });
 
-//         client.on('ready', () => {
-//             console.log(`${name} is ready.`);
-//         });
+            client.on('reconnecting', (delay: number) => {
+                console.log(`${name} is reconnecting in ${delay}ms...`);
+            });
 
-//         client.on('reconnecting', () => {
-//             console.log(`${name} is reconnecting...`);
-//         });
+            client.on('end', () => {
+                console.log(`${name} connection ended.`);
+            });
+        }
+    });
+} else {
+    console.warn(
+        'Redis clients (redisClient, redisPublisher, redisSubscriber) for Next.js are not initialized due to missing REDIS_URL.'
+    );
+}
 
-//         client.on('end', () => {
-//             console.log(`${name} connection ended.`);
-//         });
-//     });
-// } else {
-//     console.warn(
-//         'Redis clients (redisClient, pubClient, subClient) are not initialized due to missing REDIS_URL.'
-//     );
-// }
+// Экспортируем инициализированные клиенты.
+// Они будут null, если REDIS_URL не был предоставлен.
+// export { redisClient, redisPublisher, redisSubscriber }; // Старый экспорт
 
-// // Для Socket.IO адаптера обычно требуются два отдельных клиента: один для publish, другой для subscribe.
-// // ioredis позволяет использовать один и тот же инстанс для обеих операций, но для ясности
-// // и для совместимости с некоторыми адаптерами (например, @socket.io/redis-adapter)
-// // можно создать дублирующие подключения или использовать один клиент, если адаптер это поддерживает.
-// // На данном этапе экспортируем один основной клиент.
-// // Если адаптер потребует отдельные клиенты, их можно создать здесь же:
-// // export const publisher = redisUrl ? new IORedis(redisUrl, redisOptions) : null;
-// // export const subscriber = redisUrl ? new IORedis(redisUrl, redisOptions) : null;
+export async function getRedisClient(): Promise<IORedis | null> {
+    return redisClient;
+}
 
-// // Убедитесь, что publisher и subscriber (если используются) также имеют обработчики 'connect' и 'error'.
+export async function getRedisPublisher(): Promise<IORedis | null> {
+    return redisPublisher;
+}
 
-// export { redisClient, pubClient, subClient };
+export async function getRedisSubscriber(): Promise<IORedis | null> {
+    return redisSubscriber;
+}
 
-// // Для использования:
-// // 1. Убедитесь, что ваш REDIS_URL корректно указан в переменных окружения.
-// // 2. npm install ioredis
+// Для использования:
+// 1. Убедитесь, что ваш REDIS_URL корректно указан в переменных окружения для Next.js приложения.
+//    Например: REDIS_URL="redis://localhost:6379"
+// 2. npm install ioredis
+// 3. Для импорта в других частях приложения Next.js:
+//    import { redisClient, redisPublisher, redisSubscriber } from '@/lib';
 
-// // Для использования реального клиента:
-// // 1. Раскомментируйте код выше.
-// // 2. Установите зависимость: npm install redis
-// // 3. Убедитесь, что ваш REDIS_URL корректно указан в переменных окружения.
+// redis.ts теперь является основным файлом, содержащим логику.
+// index.ts в этой же директории будет просто реэкспортировать эти клиенты.
+// Это позволит использовать импорт вида '@/lib'.

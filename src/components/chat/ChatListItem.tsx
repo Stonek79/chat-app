@@ -37,7 +37,9 @@ export function ChatListItem({
 
     const isSystemMessage = message.contentType === 'SYSTEM';
 
-    const modifyMessageLimit = new Date(message.createdAt).getTime() + (10 * 60 * 1000)
+    // TODO проверить корректность работы с датами, дополнить конфиг пользователя для установки времени редактирования и удаления сообщения от 5 до 15 минут.
+    // Админ может удалять и редактировать сообщения любого пользователя в любое время без ограничений.
+    const modifyMessageLimit = new Date(message.createdAt).getTime() + 10 * 60 * 1000;
 
     const canModifyMessage = () => {
         if (message.deletedAt) return false;
@@ -167,6 +169,27 @@ export function ChatListItem({
 
     const senderDisplayName = getSenderName();
 
+    const renderMessageStatus = () => {
+        if (!isCurrentUser || !message.id || isSystemMessage || message.deletedAt) {
+            return null;
+        }
+
+        const readByOthers = message.readReceipts?.some(
+            receipt => receipt.userId !== currentUserId
+        );
+
+        console.log('readByOthers', readByOthers, message.readReceipts);
+        
+
+        if (readByOthers) {
+            return <DoneAllIcon fontSize="inherit" sx={{ color: '#4fc3f7', ml: 0.5 }} />;
+        }
+        // Если есть message.id, значит оно как минимум доставлено на сервер
+        return (
+            <CheckIcon fontSize="inherit" sx={{ color: 'text.secondary', opacity: 0.7, ml: 0.5 }} />
+        );
+    };
+
     return (
         <Box
             sx={{
@@ -234,6 +257,10 @@ export function ChatListItem({
                             )}
                         </Typography>
 
+                        {!(message.sender?.role === 'ADMIN' && !isCurrentUser) && (
+                            <Box sx={{ flexGrow: 1 }} />
+                        )}
+
                         {canModifyMessage() && (
                             <IconButton
                                 size="small"
@@ -280,30 +307,7 @@ export function ChatListItem({
                         {formatMessageTime(message.createdAt)}
                     </Typography>
 
-                    {!isSystemMessage && isCurrentUser && !message.deletedAt && (
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            {message.readReceipts && message.readReceipts.length > 0 ? (
-                                <DoneAllIcon
-                                    fontSize="inherit"
-                                    sx={{
-                                        color:
-                                            message.sender?.role === 'ADMIN'
-                                                ? 'secondary.main'
-                                                : 'success.light',
-                                    }}
-                                />
-                            ) : (
-                                <CheckIcon
-                                    fontSize="inherit"
-                                    sx={{
-                                        color: isCurrentUser
-                                            ? 'rgba(255,255,255,0.7)'
-                                            : 'text.disabled',
-                                    }}
-                                />
-                            )}
-                        </Box>
-                    )}
+                    {renderMessageStatus()}
                 </Box>
 
                 {canModifyMessage() && (

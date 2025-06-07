@@ -1,13 +1,17 @@
 import type { BasicUser, UserRole } from '../user';
 import type { MessageContentType, MessageReadReceipt } from '../message';
+import type { ClientChat } from '../chat';
 import type { Socket as SocketIOClientDefault } from 'socket.io-client';
 import {
     CLIENT_EVENT_JOIN_CHAT,
     CLIENT_EVENT_LEAVE_CHAT,
     CLIENT_EVENT_SEND_MESSAGE,
+    CLIENT_EVENT_MARK_AS_READ,
     SERVER_EVENT_RECEIVE_MESSAGE,
     SERVER_EVENT_USER_JOINED,
     SERVER_EVENT_USER_LEFT,
+    SERVER_EVENT_CHAT_CREATED,
+    SERVER_EVENT_MESSAGES_READ,
 } from '@/constants';
 
 export { SocketIOClientDefault };
@@ -78,8 +82,14 @@ export interface ClientToServerEvents {
     [CLIENT_EVENT_LEAVE_CHAT]: (chatId: string) => void;
     [CLIENT_EVENT_SEND_MESSAGE]: (
         payload: ClientSendMessagePayload,
-        ack?: (response: { success: boolean; messageId?: string; error?: string }) => void
+        ack?: (response: {
+            success: boolean;
+            messageId?: string;
+            createdAt?: Date;
+            error?: string;
+        }) => void
     ) => void;
+    [CLIENT_EVENT_MARK_AS_READ]: (payload: { chatId: string; lastReadMessageId: string }) => void;
     // Пример другого события, если понадобится:
     // 'client:typing': (data: { chatId: string; isTyping: boolean }) => void;
 
@@ -94,6 +104,13 @@ export interface ServerToClientEvents {
     [SERVER_EVENT_RECEIVE_MESSAGE]: (payload: SocketMessagePayload) => void;
     [SERVER_EVENT_USER_JOINED]: (payload: SocketUserPresencePayload) => void;
     [SERVER_EVENT_USER_LEFT]: (payload: SocketUserPresencePayload) => void;
+    [SERVER_EVENT_CHAT_CREATED]: (chat: ClientChat) => void;
+    [SERVER_EVENT_MESSAGES_READ]: (payload: {
+        chatId: string;
+        userId: string; // Пользователь, который прочитал
+        lastReadMessageId: string; // ID последнего прочитанного им сообщения в этом чате
+        readAt: Date; // Время прочтения
+    }) => void;
     // Пример другого события от сервера:
     // 'server:typing_indicator': (data: { chatId: string; userId: string; isTyping: boolean }) => void;
 

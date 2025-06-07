@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     Container,
     Typography,
@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { ChatListItem } from './ChatListItem';
 import { useChat } from '@/hooks';
+import { useMessageListScrollAndView } from '@/hooks';
 
 interface ChatContentProps {
     chatId: string;
@@ -21,8 +22,33 @@ interface ChatContentProps {
 }
 
 export const ChatContent = ({ chatId, currentUserId, isAdmin }: ChatContentProps) => {
-    const { messages, participants, sendMessage, isConnected, chatName } = useChat({ chatId });
+    const {
+        messages,
+        participants,
+        sendMessage,
+        isConnected,
+        chatName,
+        isLoadingChatDetails,
+        initialMessagesLoaded,
+        markMessagesAsRead,
+    } = useChat({ chatId });
     const [newMessage, setNewMessage] = useState('');
+
+    const handleMessageView = useCallback(
+        (messageId: string) => {
+            markMessagesAsRead(messageId);
+        },
+        [markMessagesAsRead]
+    );
+
+    const { messagesContainerRef, messagesEndRef, setMessageRef } = useMessageListScrollAndView({
+        messages,
+        currentUserId,
+        loading: isLoadingChatDetails || !initialMessagesLoaded,
+        onMessageView: handleMessageView,
+        initialMessagesLoaded,
+        chatId,
+    });
 
     const handleSendMessage = () => {
         if (newMessage.trim()) {
@@ -55,16 +81,35 @@ export const ChatContent = ({ chatId, currentUserId, isAdmin }: ChatContentProps
                 </Alert>
             )}
             <Paper
+                ref={messagesContainerRef}
                 elevation={3}
                 sx={{ p: 2, maxHeight: '60vh', overflowY: 'auto', mb: 2, minHeight: '300px' }}
             >
-                {messages.length === 0 && isConnected && (
-                    <Typography sx={{ textAlign: 'center', color: 'text.secondary' }}>
-                        Сообщений пока нет. Начните общение!
-                    </Typography>
+                {(isLoadingChatDetails || !initialMessagesLoaded) && messages.length === 0 && (
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            height: '100%',
+                        }}
+                    >
+                        <CircularProgress />
+                    </Box>
                 )}
+                {!(isLoadingChatDetails || !initialMessagesLoaded) &&
+                    messages.length === 0 &&
+                    isConnected && (
+                        <Typography sx={{ textAlign: 'center', color: 'text.secondary' }}>
+                            Сообщений пока нет. Начните общение!
+                        </Typography>
+                    )}
                 {messages.map(message => (
-                    <div key={message.id}>
+                    <div
+                        key={message.id}
+                        ref={el => setMessageRef(String(message.id), el)}
+                        data-message-id={String(message.id)}
+                    >
                         <ChatListItem
                             message={message}
                             currentUserId={currentUserId}
@@ -78,7 +123,7 @@ export const ChatContent = ({ chatId, currentUserId, isAdmin }: ChatContentProps
                         />
                     </div>
                 ))}
-                {/* TODO: Добавить автоскролл вниз при новых сообщениях */}
+                <div ref={messagesEndRef} />
             </Paper>
             <Box
                 component="form"

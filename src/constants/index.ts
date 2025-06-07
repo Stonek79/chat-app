@@ -5,3 +5,4 @@ export * from './appConfig';
 export * from './socketEvents';
 export * from './message'
 export * from './user'
+export * from './chat'

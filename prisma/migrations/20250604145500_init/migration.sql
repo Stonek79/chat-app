@@ -1,3 +1,12 @@
+-- CreateEnum
+CREATE TYPE "ChatParticipantRole" AS ENUM ('OWNER', 'ADMIN', 'MEMBER');
+
+-- CreateEnum
+CREATE TYPE "MessageContentType" AS ENUM ('TEXT', 'IMAGE', 'VIDEO', 'AUDIO', 'FILE', 'SYSTEM', 'URL');
+
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('USER', 'ADMIN');
+
 -- CreateTable
 CREATE TABLE "Chat" (
     "id" TEXT NOT NULL,
@@ -17,7 +26,7 @@ CREATE TABLE "ChatParticipant" (
     "userId" TEXT NOT NULL,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "leftAt" TIMESTAMP(3),
-    "role" TEXT NOT NULL DEFAULT 'member',
+    "role" "ChatParticipantRole" NOT NULL DEFAULT 'MEMBER',
     "encryptedSessionKey" TEXT,
     "lastReadMessageId" TEXT,
 
@@ -30,15 +39,28 @@ CREATE TABLE "Message" (
     "chatId" TEXT NOT NULL,
     "senderId" TEXT NOT NULL,
     "content" TEXT NOT NULL,
-    "contentType" TEXT NOT NULL DEFAULT 'text',
+    "mediaUrl" TEXT,
+    "contentType" "MessageContentType" NOT NULL DEFAULT 'TEXT',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
+    "isEdited" BOOLEAN NOT NULL DEFAULT false,
     "status" TEXT NOT NULL DEFAULT 'sent',
     "replyToMessageId" TEXT,
     "forwardedFromMessageId" TEXT,
+    "userId" TEXT,
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MessageReadReceipt" (
+    "id" TEXT NOT NULL,
+    "messageId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "readAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MessageReadReceipt_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -58,7 +80,7 @@ CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "username" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "hashedPassword" TEXT NOT NULL,
+    "hashedPassword" TEXT,
     "avatarUrl" TEXT,
     "publicKey" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -67,8 +89,10 @@ CREATE TABLE "User" (
     "isOnline" BOOLEAN NOT NULL DEFAULT false,
     "isVerified" BOOLEAN NOT NULL DEFAULT false,
     "verificationToken" TEXT,
+    "verificationTokenExpires" TIMESTAMP(3),
     "resetPasswordToken" TEXT,
     "resetPasswordExpires" TIMESTAMP(3),
+    "role" "UserRole" NOT NULL DEFAULT 'USER',
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -93,6 +117,15 @@ CREATE INDEX "Message_senderId_idx" ON "Message"("senderId");
 
 -- CreateIndex
 CREATE INDEX "Message_replyToMessageId_idx" ON "Message"("replyToMessageId");
+
+-- CreateIndex
+CREATE INDEX "MessageReadReceipt_messageId_idx" ON "MessageReadReceipt"("messageId");
+
+-- CreateIndex
+CREATE INDEX "MessageReadReceipt_userId_idx" ON "MessageReadReceipt"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MessageReadReceipt_messageId_userId_key" ON "MessageReadReceipt"("messageId", "userId");
 
 -- CreateIndex
 CREATE INDEX "SessionMessage_senderId_idx" ON "SessionMessage"("senderId");
@@ -129,3 +162,24 @@ ALTER TABLE "Message" ADD CONSTRAINT "Message_chatId_fkey" FOREIGN KEY ("chatId"
 
 -- AddForeignKey
 ALTER TABLE "Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_replyToMessageId_fkey" FOREIGN KEY ("replyToMessageId") REFERENCES "Message"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_forwardedFromMessageId_fkey" FOREIGN KEY ("forwardedFromMessageId") REFERENCES "Message"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MessageReadReceipt" ADD CONSTRAINT "MessageReadReceipt_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "Message"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MessageReadReceipt" ADD CONSTRAINT "MessageReadReceipt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SessionMessage" ADD CONSTRAINT "SessionMessage_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SessionMessage" ADD CONSTRAINT "SessionMessage_receiverId_fkey" FOREIGN KEY ("receiverId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -1,0 +1,1 @@
+export { ChatParticipantRole as ChatParticipantRoleEnum } from '@prisma/client';

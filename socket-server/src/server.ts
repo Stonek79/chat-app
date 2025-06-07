@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 import { jwtAuthMiddleware } from './middlewares/authMiddleware.ts';
+import { PrismaClient, MessageContentType as PrismaMessageContentType } from '@prisma/client';
 import {
     CHAT_NAMESPACE,
     CLIENT_EVENT_JOIN_CHAT,
@@ -16,8 +17,10 @@ import {
     SERVER_EVENT_USER_JOINED,
     SERVER_EVENT_USER_LEFT,
     SOCKET_EVENT_DISCONNECT,
-    MessageContentTypeEnum,
     UserRoleEnum,
+    SERVER_EVENT_CHAT_CREATED,
+    CLIENT_EVENT_MARK_AS_READ,
+    SERVER_EVENT_MESSAGES_READ,
 } from '#/constants';
 
 import type {
@@ -27,7 +30,11 @@ import type {
     SocketMessagePayload,
     SocketUserPresencePayload,
     GeneralSocketErrorPayload,
+    MessageContentType,
 } from '#/types';
+
+// --- Инициализация Prisma Client ---
+const prisma = new PrismaClient();
 
 // --- Конфигурация (лучше вынести в переменные окружения) ---
 const PORT = parseInt(process.env.SOCKET_PORT || '3001', 10);
@@ -72,6 +79,91 @@ subClient.on('error', (err: Error) => {
     console.error('Redis SubClient Error:', err);
 });
 
+// --- Клиент Redis для подписки на уведомления от API ---
+const notificationSubscriber = pubClient.duplicate(); // Используем существующий pubClient для создания подписчика
+const redisNotificationsChannel =
+    process.env.REDIS_SOCKET_NOTIFICATIONS_CHANNEL || 'socket-notifications';
+
+notificationSubscriber.on('connect', () => {
+    console.log(
+        `[Socket.IO Server] NotificationSubClient connected to Redis. Subscribing to ${redisNotificationsChannel}...`
+    );
+    notificationSubscriber.subscribe(redisNotificationsChannel, (err, count) => {
+        if (err) {
+            console.error(
+                `[Socket.IO Server] Failed to subscribe to Redis channel ${redisNotificationsChannel}:`,
+                err
+            );
+            return;
+        }
+        console.log(
+            `[Socket.IO Server] Subscribed to Redis channel: ${redisNotificationsChannel}. Number of subscribed channels: ${count}`
+        );
+    });
+});
+
+notificationSubscriber.on('error', (err: Error) => {
+    console.error('[Socket.IO Server] Redis NotificationSubClient Error:', err);
+});
+
+notificationSubscriber.on('message', (channel, message) => {
+    if (channel === redisNotificationsChannel) {
+        console.log(`[Socket.IO Server] Received message from Redis channel ${channel}`);
+        try {
+            const notificationPayload = JSON.parse(message);
+
+            if (notificationPayload.type === 'NEW_CHAT' && notificationPayload.data) {
+                const { chatData, initiatorUserId } = notificationPayload.data; // chatData это ClientChat
+                if (
+                    chatData &&
+                    chatData.id &&
+                    chatData.members &&
+                    Array.isArray(chatData.members)
+                ) {
+                    console.log(
+                        `[Socket.IO Server] Processing NEW_CHAT event for chat ID: ${chatData.id}. Initiator: ${initiatorUserId}. Members: ${chatData.members.length}`
+                    );
+
+                    chatData.members.forEach((member: { id: string; username?: string }) => {
+                        // Упрощенный тип для member, ожидаем ClientChatParticipant
+                        if (member && member.id) {
+                            // member.id это userId
+                            // Отправляем событие SERVER_EVENT_CHAT_CREATED в личную комнату каждого участника
+                            // Клиент получит полный объект chatData (типа ClientChat)
+                            // Убедимся, что chatNamespace существует и доступен здесь
+                            io.of(SOCKET_IO_NAMESPACE)
+                                .to(member.id)
+                                .emit(SERVER_EVENT_CHAT_CREATED, chatData);
+                            console.log(
+                                `[Socket.IO Server] Emitted SERVER_EVENT_CHAT_CREATED to user ${member.id} (room ${member.id}) for new chat ${chatData.id}`
+                            );
+                        } else {
+                            console.warn(
+                                '[Socket.IO Server] Invalid member data in NEW_CHAT event:',
+                                member
+                            );
+                        }
+                    });
+                } else {
+                    console.warn(
+                        '[Socket.IO Server] Invalid chatData in NEW_CHAT event:',
+                        chatData
+                    );
+                }
+            } else {
+                console.warn(
+                    `[Socket.IO Server] Received unknown payload type from Redis: ${notificationPayload.type || 'N/A'} on channel ${channel}`
+                );
+            }
+        } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            console.error(
+                `[Socket.IO Server] Error parsing or processing message from Redis channel ${channel}: ${errorMessage}. Raw message: "${message}"`
+            );
+        }
+    }
+});
+
 // --- Неймспейс /chat ---
 const chatNamespace = io.of(SOCKET_IO_NAMESPACE);
 
@@ -83,6 +175,10 @@ chatNamespace.on('connection', (socket: AppServerSocket) => {
     const authenticatedUser = socket.data.user;
 
     if (authenticatedUser) {
+        socket.join(authenticatedUser.userId); // Пользователь присоединяется к комнате по своему userId
+        console.log(
+            `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] User ${authenticatedUser.username} (ID: ${authenticatedUser.userId}) joined their personal room ${authenticatedUser.userId}`
+        );
         console.log(
             `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Authenticated user ${authenticatedUser.username} (Email: ${authenticatedUser.email || 'N/A'}) connected: ${socket.id}`
         );
@@ -118,18 +214,22 @@ chatNamespace.on('connection', (socket: AppServerSocket) => {
         (
             payload: ClientSendMessagePayload,
             // Добавляем ack колбэк, который будет вызван для ответа клиенту
-            ack?: (response: { success: boolean; messageId?: string; error?: string }) => void
+            // Обновляем тип ack
+            ack?: (response: {
+                success: boolean;
+                messageId?: string;
+                createdAt?: Date; // Добавляем createdAt в ack
+                error?: string;
+            }) => void
         ) => {
             const user = socket.data.user;
             if (!user) {
-                // Если есть ack, отвечаем ошибкой аутентификации
                 ack?.({ success: false, error: 'Authentication required' });
-                // Отправляем также общую ошибку по сокету, если это старое поведение
                 const errorPayload: GeneralSocketErrorPayload = {
                     message: 'Authentication required to send messages.',
                     code: 'UNAUTHORIZED',
                 };
-                socket.emit('error', errorPayload); // Используем стандартное событие 'error' для ошибок приложения
+                socket.emit('error', errorPayload);
                 console.warn(
                     `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Unauthorized user ${socket.id} attempted to send message.`
                 );
@@ -137,31 +237,157 @@ chatNamespace.on('connection', (socket: AppServerSocket) => {
             }
 
             console.log(
-                `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Message from ${user.username} (Socket: ${socket.id}) in room ${payload.chatId}: ${payload.content}`
+                `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Attempting to save message from ${user.username} (Socket: ${socket.id}) in chat ${payload.chatId}: ${payload.content}`
             );
 
-            const messageData: SocketMessagePayload = {
-                chatId: payload.chatId,
-                sender: {
-                    id: user.userId,
-                    email: user.email || '',
-                    role: user.role || UserRoleEnum.USER,
-                    username: user.username || '',
-                    avatarUrl: user.avatarUrl || '',
-                },
-                createdAt: new Date(),
-                content: payload.content,
-                contentType: payload.contentType || MessageContentTypeEnum.TEXT,
-                mediaUrl: payload.mediaUrl,
-                readReceipts: [],
-            };
+            // Сохранение сообщения в БД
+            prisma.message
+                .create({
+                    data: {
+                        chatId: payload.chatId,
+                        senderId: user.userId, // senderId из аутентифицированного пользователя
+                        content: payload.content,
+                        contentType: payload.contentType || PrismaMessageContentType.TEXT,
+                        mediaUrl: payload.mediaUrl,
+                        // readReceipts и другие поля будут по умолчанию или установлены позже
+                    },
+                    include: {
+                        sender: true,
+                        readReceipts: true,
+                    },
+                })
+                .then(savedMessage => {
+                    console.log(
+                        `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Message saved to DB with ID: ${savedMessage.id}`
+                    );
 
-            // Отправляем сообщение в указанную комнату (chatId)
-            chatNamespace.to(payload.chatId).emit(SERVER_EVENT_RECEIVE_MESSAGE, messageData);
+                    const messageData: SocketMessagePayload = {
+                        id: savedMessage.id, // ID из БД
+                        chatId: savedMessage.chatId,
+                        sender: {
+                            // Формируем BasicUser из socket.data.user
+                            id: user.userId,
+                            username: user.username || '',
+                            email: user.email || '',
+                            role: user.role || UserRoleEnum.USER, // Используем UserRoleEnum или Prisma enum
+                            avatarUrl: user.avatarUrl || '',
+                        },
+                        content: savedMessage.content,
+                        contentType: savedMessage.contentType as MessageContentType, // Приведение типа к MessageContentType
+                        mediaUrl: savedMessage.mediaUrl,
+                        createdAt: savedMessage.createdAt, // createdAt из БД
+                        updatedAt: savedMessage.updatedAt, // updatedAt из БД
+                        readReceipts: [], // Начальное значение, будет обновляться
+                        deletedAt: savedMessage.deletedAt, // deletedAt из БД (должно быть null)
+                    };
 
-            // Отвечаем клиенту через ack, что сообщение принято (но еще не обязательно сохранено в БД)
-            // В будущем, messageId можно будет получить после сохранения в БД и передать сюда.
-            ack?.({ success: true, messageId: messageData.id || `temp-${Date.now()}` });
+                    // Отправляем сообщение в указанную комнату (chatId)
+                    chatNamespace
+                        .to(payload.chatId)
+                        .emit(SERVER_EVENT_RECEIVE_MESSAGE, messageData);
+                    console.log(
+                        `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Emitted SERVER_EVENT_RECEIVE_MESSAGE to room ${payload.chatId} for message ${savedMessage.id}`
+                    );
+
+                    // Отправляем подтверждение клиенту
+                    ack?.({
+                        success: true,
+                        messageId: savedMessage.id,
+                        createdAt: savedMessage.createdAt,
+                    });
+                })
+                .catch(error => {
+                    console.error(
+                        `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Error saving message to DB for chat ${payload.chatId}:`,
+                        error
+                    );
+                    ack?.({ success: false, error: 'Failed to save message to database.' });
+                });
+        }
+    );
+
+    socket.on(
+        CLIENT_EVENT_MARK_AS_READ,
+        async (payload: { chatId: string; lastReadMessageId: string }) => {
+            const user = socket.data.user;
+            if (!user || !user.userId) {
+                console.warn(
+                    `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Unauthorized attempt to mark messages as read.`
+                );
+                // Можно отправить ошибку клиенту, если это необходимо
+                // socket.emit('error', { message: 'Authentication required.', code: 'UNAUTHORIZED' });
+                return;
+            }
+
+            const { chatId, lastReadMessageId } = payload;
+            const currentReadTime = new Date();
+
+            try {
+                // 1. Найти все сообщения в чате, которые:
+                //    - Не были отправлены текущим пользователем (user.userId)
+                //    - Были созданы до или в то же время, что и lastReadMessageId (предполагая, что ID сортируемы по времени или это ID конкретного сообщения)
+                //    - Для которых еще нет записи MessageReadReceipt от этого пользователя
+
+                // Сначала найдем ID всех сообщений, которые должен прочитать пользователь
+                const messagesToMarkAsRead = await prisma.message.findMany({
+                    where: {
+                        chatId: chatId,
+                        id: { lte: lastReadMessageId }, // Сообщения до lastReadMessageId включительно
+                        senderId: { not: user.userId }, // Не свои сообщения
+                        readReceipts: {
+                            // И для которых нет записи о прочтении этим пользователем
+                            none: {
+                                userId: user.userId,
+                            },
+                        },
+                    },
+                    select: {
+                        id: true, // Нам нужны только ID для создания записей о прочтении
+                    },
+                });
+
+                if (messagesToMarkAsRead.length === 0) {
+                    console.log(
+                        `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] No new messages to mark as read for user ${user.userId} in chat ${chatId} up to message ${lastReadMessageId}.`
+                    );
+                    return; // Нет сообщений для отметки
+                }
+
+                const readReceiptsData = messagesToMarkAsRead.map(message => ({
+                    messageId: message.id,
+                    userId: user.userId,
+                    readAt: currentReadTime,
+                }));
+
+                // 2. Создать записи MessageReadReceipt для этих сообщений
+                const mr = await prisma.messageReadReceipt.createMany({
+                    data: readReceiptsData,
+                    skipDuplicates: true, // Важно, чтобы не было ошибок при повторной попытке (хотя where выше должен это предотвращать)
+                });
+
+                console.log('MESSAGE_READ_RECEIPT', mr);
+
+                console.log(
+                    `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] User ${user.userId} marked ${readReceiptsData.length} messages as read in chat ${chatId} up to ${lastReadMessageId}.`
+                );
+
+                // 3. Оповестить клиентов в комнате о том, что сообщения прочитаны
+                // Отправляем всем в комнате, включая самого пользователя, который прочитал.
+                // Это позволит UI обновить статусы сообщений.
+                chatNamespace.to(chatId).emit(SERVER_EVENT_MESSAGES_READ, {
+                    chatId: chatId,
+                    userId: user.userId,
+                    lastReadMessageId: lastReadMessageId, // Отправляем ID последнего сообщения, до которого были прочитаны
+                    readAt: currentReadTime,
+                });
+            } catch (error) {
+                console.error(
+                    `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Error marking messages as read for user ${user.userId} in chat ${chatId}:`,
+                    error
+                );
+                // Опционально: отправить ошибку клиенту
+                // socket.emit('error', { message: 'Failed to mark messages as read.', code: 'INTERNAL_ERROR' });
+            }
         }
     );
 
@@ -243,6 +469,9 @@ signals.forEach(signal => {
             console.log('Socket.IO server closed.');
             pubClient.quit(() => console.log('Redis PubClient disconnected.'));
             subClient.quit(() => console.log('Redis SubClient disconnected.'));
+            notificationSubscriber.quit(() =>
+                console.log('[Socket.IO Server] Redis NotificationSubClient disconnected.')
+            );
             httpServer.close(() => {
                 console.log('HTTP server closed.');
                 process.exit(0);

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, prisma, handleApiError, ApiError } from '@/lib';
 import {
     ClientChat,
-    ChatParticipant as ClientChatParticipantType,
+    ClientChatParticipant,
     ChatLastMessage,
     ChatWithDetails,
     AuthenticatedUser,
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
                     },
                 },
                 messages: {
-                    orderBy: { createdAt: 'desc' },
+                    orderBy: { createdAt: 'asc' },
                     take: limit,
                     include: {
                         sender: true,
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             ? chatFromDb.avatarUrl
             : null;
 
-        const chatParticipantsData: ClientChatParticipantType[] = chatFromDb.participants.map(
+        const chatParticipantsData: ClientChatParticipant[] = chatFromDb.participants.map(
             p => ({
                 id: p.user.id,
                 username: p.user.username,
@@ -117,6 +117,7 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
                   createdAt: lastMessageData.createdAt,
                   senderId: lastMessageData.sender.id,
                   senderUsername: lastMessageData.sender.username,
+                  senderEmail: lastMessageData.sender.email,
               }
             : undefined;
 
@@ -128,7 +129,6 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             members: chatParticipantsData,
             lastMessage: lastMessageClient,
             messages: chatFromDb.messages,
-            // unreadCount не вычисляется для детального просмотра одного чата в этом эндпоинте
         };
 
         return NextResponse.json({ chat: clientChat });

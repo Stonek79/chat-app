@@ -1,10 +1,10 @@
 model ChatParticipant {
-    id       String    @id @default(cuid())
+    id       String              @id @default(cuid())
     chatId   String
     userId   String
-    joinedAt DateTime  @default(now())
+    joinedAt DateTime            @default(now())
     leftAt   DateTime?
-    role     UserRole  @default(USER)
+    role     ChatParticipantRole @default(MEMBER)
 
     // Зашифрованный ключ сессии для данного пользователя в данном чате.
     // Ключ шифруется публичным ключом пользователя.
@@ -50,4 +50,10 @@ model ChatParticipant {
     @@unique([chatId, userId])
     @@index([userId])
     @@index([chatId])
+}
+
+enum ChatParticipantRole {
+    OWNER // Создатель/Владелец чата, полные права на чат
+    ADMIN // Администратор чата (может быть назначен OWNER'ом), управляет участниками, настройками
+    MEMBER // Обычный участник
 }
