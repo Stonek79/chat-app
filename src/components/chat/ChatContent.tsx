@@ -1,19 +1,14 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import {
-    Container,
-    Typography,
-    TextField,
-    Button,
-    Box,
-    Paper,
-    CircularProgress,
-    Alert,
-} from '@mui/material';
+import React, { useCallback, useState } from 'react';
+import { Box, CircularProgress, Alert } from '@mui/material';
 import { ChatListItem } from './ChatListItem';
 import { useChat } from '@/hooks';
 import { useMessageListScrollAndView } from '@/hooks';
+import type { DisplayMessage } from '@/types';
+import { MessageInput } from './MessageInput';
+import { ConfirmationModal } from '../common';
+import { ChatHeader } from './ChatHeader';
 
 interface ChatContentProps {
     chatId: string;
@@ -27,12 +22,14 @@ export const ChatContent = ({ chatId, currentUserId, isAdmin }: ChatContentProps
         participants,
         sendMessage,
         isConnected,
-        chatName,
+        chatDetails,
         isLoadingChatDetails,
         initialMessagesLoaded,
         markMessagesAsRead,
+        deleteMessage,
     } = useChat({ chatId });
-    const [newMessage, setNewMessage] = useState('');
+
+    const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
 
     const handleMessageView = useCallback(
         (messageId: string) => {
@@ -50,60 +47,83 @@ export const ChatContent = ({ chatId, currentUserId, isAdmin }: ChatContentProps
         chatId,
     });
 
-    const handleSendMessage = () => {
-        if (newMessage.trim()) {
-            sendMessage(newMessage.trim());
-            setNewMessage('');
+    const handleEditMessage = useCallback((message: DisplayMessage) => {
+        console.log('Edit click', message); /* TODO: Реализовать логику редактирования */
+    }, []);
+
+    const handleDeleteRequest = useCallback((messageId: string) => {
+        setMessageToDelete(messageId);
+    }, []);
+
+    const handleConfirmDelete = useCallback(() => {
+        if (messageToDelete) {
+            deleteMessage(messageToDelete);
+            setMessageToDelete(null);
         }
+    }, [deleteMessage, messageToDelete]);
+
+    const handleCancelDelete = () => {
+        setMessageToDelete(null);
     };
 
-    if (!isConnected && !messages.length) {
-        // Если нет подключения и нет сообщений (например, при первой загрузке и проблемах с сокетом)
+    if (isLoadingChatDetails && !initialMessagesLoaded) {
         return (
-            <Container sx={{ textAlign: 'center', mt: 4 }}>
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                }}
+            >
                 <CircularProgress />
-                <Typography sx={{ mt: 2 }}>Подключение к чату...</Typography>
-            </Container>
+            </Box>
         );
     }
 
-    // TODO: Более умная загрузка истории или отображение заглушки, если сообщений нет
-    //       идет загрузка истории (если будет такой флаг в useChat)
+    const getStatus = () => {
+        if (!chatDetails) return '';
+        if (chatDetails.isGroupChat) {
+            return `${participants.length} участника(ов)`;
+        }
+        // TODO: Добавить логику статуса "в сети"
+        return 'не в сети';
+    };
 
     return (
-        <Container maxWidth="md" sx={{ mt: 2, mb: 2 }}>
-            <Typography variant="h5" gutterBottom>
-                Чат: {chatName}
-            </Typography>
+        <Box
+            sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+            }}
+        >
+            <ChatHeader
+                chatName={chatDetails?.name || 'Загрузка...'}
+                chatAvatarUrl={chatDetails?.avatarUrl}
+                status={getStatus()}
+            />
             {!isConnected && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
+                <Alert severity="warning" sx={{ m: 1, flexShrink: 0 }}>
                     Соединение с сервером чата потеряно. Попытка переподключения...
                 </Alert>
             )}
-            <Paper
+            <Box
                 ref={messagesContainerRef}
-                elevation={3}
-                sx={{ p: 2, maxHeight: '60vh', overflowY: 'auto', mb: 2, minHeight: '300px' }}
+                sx={{
+                    flexGrow: 1,
+                    overflowY: 'auto',
+                    p: 2,
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
             >
-                {(isLoadingChatDetails || !initialMessagesLoaded) && messages.length === 0 && (
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            height: '100%',
-                        }}
-                    >
-                        <CircularProgress />
+                {messages.length === 0 && isConnected && (
+                    <Box sx={{ m: 'auto', textAlign: 'center', color: 'text.secondary' }}>
+                        Сообщений пока нет. Начните общение!
                     </Box>
                 )}
-                {!(isLoadingChatDetails || !initialMessagesLoaded) &&
-                    messages.length === 0 &&
-                    isConnected && (
-                        <Typography sx={{ textAlign: 'center', color: 'text.secondary' }}>
-                            Сообщений пока нет. Начните общение!
-                        </Typography>
-                    )}
                 {messages.map(message => (
                     <div
                         key={message.id}
@@ -114,44 +134,22 @@ export const ChatContent = ({ chatId, currentUserId, isAdmin }: ChatContentProps
                             message={message}
                             currentUserId={currentUserId}
                             isAdmin={isAdmin}
-                            onEdit={() => {
-                                console.log('Edit click', message); /* TODO */
-                            }}
-                            onDelete={() => {
-                                console.log('Delete click', message); /* TODO */
-                            }}
+                            onEdit={handleEditMessage}
+                            onDelete={handleDeleteRequest}
                         />
                     </div>
                 ))}
                 <div ref={messagesEndRef} />
-            </Paper>
-            <Box
-                component="form"
-                sx={{ display: 'flex', gap: 1 }}
-                onSubmit={e => {
-                    e.preventDefault();
-                    handleSendMessage();
-                }}
-            >
-                <TextField
-                    fullWidth
-                    variant="outlined"
-                    placeholder="Введите сообщение..."
-                    value={newMessage}
-                    onChange={e => setNewMessage(e.target.value)}
-                    disabled={!isConnected}
-                />
-                <Button
-                    variant="contained"
-                    onClick={handleSendMessage}
-                    disabled={!isConnected || !newMessage.trim()}
-                >
-                    Отправить
-                </Button>
             </Box>
-            <Typography variant="caption" sx={{ mt: 2 }}>
-                Участники: {participants.map(p => p.username).join(', ')}
-            </Typography>
-        </Container>
+            <MessageInput onSendMessage={sendMessage} isConnected={isConnected} />
+            <ConfirmationModal
+                open={!!messageToDelete}
+                onClose={handleCancelDelete}
+                onConfirm={handleConfirmDelete}
+                title="Подтвердите удаление"
+                description="Вы уверены, что хотите удалить это сообщение? Это действие нельзя будет отменить."
+                confirmButtonText="Удалить"
+            />
+        </Box>
     );
 };

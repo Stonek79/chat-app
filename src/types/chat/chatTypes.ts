@@ -1,5 +1,20 @@
-import { Message } from '../message';
-import { ChatParticipantRole } from '@prisma/client';
+import type { z } from 'zod';
+import type {
+    Message,
+    MessageContentType,
+    ClientMessageAction,
+    MessageReadReceipt,
+} from '../message';
+import type { BasicUser } from '../user';
+import type {
+    clientChatParticipantSchema,
+    chatLastMessageSchema,
+    clientChatSchema,
+    createGroupChatSchema,
+    createPrivateChatSchema,
+    createMessageSchema,
+    sendMessageSocketSchema,
+} from '@/schemas';
 
 export type {
     Chat,
@@ -7,39 +22,67 @@ export type {
     ChatParticipantRole,
 } from '@prisma/client';
 
-// Краткая информация о пользователе для отображения в списках, сообщениях и т.д.
-export interface ClientChatParticipant {
-    id: string;
-    username: string;
-    avatarUrl?: string | null;
-    role: ChatParticipantRole;
-    email: string;
+/**
+ * @description Тип для валидации данных при создании нового группового чата.
+ * Выводится из `createGroupChatSchema`.
+ */
+export type CreateGroupChatPayload = z.infer<typeof createGroupChatSchema>;
 
-    // Можно добавить онлайн-статус, если он будет использоваться здесь
-    // isOnline?: boolean;
-}
+/**
+ * @description Тип для валидации данных при создании личного чата (диалога).
+ * Выводится из `createPrivateChatSchema`.
+ */
+export type CreatePrivateChatPayload = z.infer<typeof createPrivateChatSchema>;
 
-// Информация о последнем сообщении в чате для превью
-export interface ChatLastMessage {
-    id: string;
-    content: string;
-    createdAt: Date;
-    senderId: string;
-    senderUsername: string;
-    senderEmail: string;
-}
+/**
+ * @description Тип для валидации данных при отправке нового сообщения.
+ * Выводится из `createMessageSchema`.
+ */
+export type CreateMessagePayload = z.infer<typeof createMessageSchema>;
 
-// Основной тип для представления чата на клиенте
-export interface ClientChat {
-    id: string;
-    name?: string | null; // Имя группового чата или вычисляемое имя для ЛС
-    isGroupChat: boolean;
-    members?: ClientChatParticipant[]; // Участники чата (может быть опционально для списков)
-    lastMessage?: ChatLastMessage | null;
-    unreadCount?: number; // Количество непрочитанных сообщений
-    avatarUrl?: string | null; // Аватар для группового чата или собеседника в ЛС
+/**
+ * @description Тип для payload при отправке сообщения через сокет.
+ * Выводится из `sendMessageSocketSchema`.
+ */
+export type ClientSendMessagePayload = z.infer<typeof sendMessageSocketSchema>;
+
+/**
+ * @description Краткая информация о пользователе для отображения в списках, сообщениях и т.д.
+ * Выводится из `clientChatParticipantSchema`.
+ */
+export type ClientChatParticipant = z.infer<typeof clientChatParticipantSchema>;
+
+/**
+ * @description Информация о последнем сообщении в чате для превью.
+ * Выводится из `chatLastMessageSchema`.
+ */
+export type ChatLastMessage = z.infer<typeof chatLastMessageSchema>;
+
+/**
+ * @description Основной тип для представления чата на клиенте.
+ * Выводится из `clientChatSchema`.
+ */
+export type ClientChat = z.infer<typeof clientChatSchema> & {
+    // Опционально добавляем поле messages, которое не является частью основной DTO-схемы,
+    // но может быть добавлено на клиенте после отдельного запроса.
     messages?: Message[];
-    // Другие поля, которые могут понадобиться, например, typingIndicators
+};
+
+/**
+ * @description Тип для сообщения, передаваемого через сокет.
+ * Используется в событии SERVER_EVENT_RECEIVE_MESSAGE.
+ */
+export interface SocketMessagePayload {
+    id: string;
+    chatId: string;
+    content: string;
+    contentType: MessageContentType;
+    createdAt: Date;
+    updatedAt: Date | null;
+    sender: BasicUser;
+    readReceipts: MessageReadReceipt[];
+    actions: ClientMessageAction[];
+    clientTempId?: string;
 }
 
 // Тип для сообщения в чате
@@ -52,15 +95,4 @@ export interface ChatMessage {
     updatedAt?: Date | null;
     isOptimistic?: boolean; // Для UI, если сообщение еще не подтверждено сервером
     // Можно добавить реакции, статус прочтения и т.д.
-}
-
-// Пейлоад для создания нового личного чата
-export interface CreateDirectChatPayload {
-    targetUserId: string;
-}
-
-// Пейлоад для создания нового группового чата
-export interface CreateGroupChatPayload {
-    name: string;
-    memberIds: string[]; // ID пользователей, добавляемых в группу (кроме создателя)
 }

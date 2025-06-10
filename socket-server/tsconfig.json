@@ -20,7 +20,9 @@
             "#/types": ["../src/types/index.ts"],
             "#/types/*": ["../src/types/*.ts"],
             "#/constants": ["../src/constants/index.ts"],
-            "#/constants/*": ["../src/constants/*.ts"]
+            "#/constants/*": ["../src/constants/*.ts"],
+            "#/schemas": ["../src/schemas/index.ts"],
+            "#/schemas/*": ["../src/schemas/*.ts"]
         },
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true

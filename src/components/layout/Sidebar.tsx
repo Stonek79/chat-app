@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ReactNode, useEffect } from 'react';
+import { ReactNode } from 'react';
 import { ClientUser, ClientChat } from '@/types';
 import Paper from '@mui/material/Paper';
 import { UserProfilePanel } from './sidebar/UserProfilePanel';
@@ -30,7 +30,7 @@ const getChatIdFromPathname = (currentPathname: string): string | null => {
 
 interface SidebarProps {
     initialUser: ClientUser;
-    children: ReactNode;
+    children?: ReactNode;
     chats: ClientChat[];
 }
 
@@ -39,51 +39,14 @@ export function Sidebar({ initialUser, children, chats }: SidebarProps) {
     const router = useRouter();
     const pathname = usePathname();
 
-    const [selectedChatId, setSelectedChatId] = useState<string | null>(() => {
-        const chatIdFromUrl = getChatIdFromPathname(pathname);
-        return chatIdFromUrl || chats[0]?.id || null;
-    });
-
-    useEffect(() => {
-        const chatIdFromUrl = getChatIdFromPathname(pathname);
-
-        if (chatIdFromUrl) {
-            // Мы на странице конкретного чата (например, /chat/some-id)
-            // Синхронизируем selectedChatId с URL
-            if (chatIdFromUrl !== selectedChatId) {
-                setSelectedChatId(chatIdFromUrl);
-            }
-        } else {
-            // Мы не на странице конкретного чата (например, /chat или /chat/)
-            // Проверяем, является ли текущий путь базовой страницей чатов
-            if (pathname === CHAT_PAGE_ROUTE || pathname === `${CHAT_PAGE_ROUTE}/`) {
-                if (chats.length > 0) {
-                    const firstChatId = chats[0].id;
-                    // Перенаправляем на первый чат
-                    router.push(`${CHAT_PAGE_ROUTE}/${firstChatId}`);
-                    // selectedChatId обновится автоматически при следующем запуске useEffect
-                    // после изменения pathname
-                } else {
-                    // На странице /chat нет чатов, убедимся, что selectedChatId сброшен
-                    if (selectedChatId !== null) {
-                        setSelectedChatId(null);
-                    }
-                }
-            }
-            // Можно добавить обработку других путей без chatId, если это необходимо
-            // например, если Sidebar используется в других частях приложения
-        }
-    }, [pathname, chats, router, selectedChatId, CHAT_PAGE_ROUTE]);
+    // ID активного чата теперь просто вычисляется из URL.
+    // Больше нет необходимости в useState и useEffect для синхронизации.
+    const selectedChatId = getChatIdFromPathname(pathname);
 
     const handleChatSelect = (chatId: string) => {
-        // Обновление selectedChatId произойдет через useEffect после изменения pathname
-        if (
-            chatId !== selectedChatId ||
-            pathname === CHAT_PAGE_ROUTE ||
-            pathname === `${CHAT_PAGE_ROUTE}/`
-        ) {
-            router.push(`${CHAT_PAGE_ROUTE}/${chatId}`);
-        }
+        // Просто переходим по новому маршруту.
+        // Состояние обновится автоматически, так как изменится `pathname`.
+        router.push(`${CHAT_PAGE_ROUTE}/${chatId}`);
     };
 
     // TODO: Реализовать модальные окна для создания каналов/ЛС
@@ -126,7 +89,6 @@ export function Sidebar({ initialUser, children, chats }: SidebarProps) {
                         onChatSelect={handleChatSelect}
                         onAddChat={handleAddDirectMessage}
                         addChatButtonText="Начать переписку"
-                        isDirectMessages={true}
                     />
                 </Box>
                 <LogoutButtonSection />
@@ -136,7 +98,7 @@ export function Sidebar({ initialUser, children, chats }: SidebarProps) {
                     flexGrow: 1,
                     display: 'flex',
                     flexDirection: 'column',
-                    height: '100vh',
+                    height: '100%',
                     overflow: 'auto',
                 }}
             >

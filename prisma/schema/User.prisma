@@ -51,4 +51,7 @@ model User {
     Message Message[]
 
     MessageReadReceipt MessageReadReceipt[]
+
+    /// Действия, совершенные этим пользователем (удаление, редактирование сообщений).
+    actions MessageAction[]
 }

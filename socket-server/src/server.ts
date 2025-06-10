@@ -17,10 +17,10 @@ import {
     SERVER_EVENT_USER_JOINED,
     SERVER_EVENT_USER_LEFT,
     SOCKET_EVENT_DISCONNECT,
-    UserRoleEnum,
     SERVER_EVENT_CHAT_CREATED,
     CLIENT_EVENT_MARK_AS_READ,
     SERVER_EVENT_MESSAGES_READ,
+    SERVER_EVENT_MESSAGE_DELETED,
 } from '#/constants';
 
 import type {
@@ -30,8 +30,8 @@ import type {
     SocketMessagePayload,
     SocketUserPresencePayload,
     GeneralSocketErrorPayload,
-    MessageContentType,
 } from '#/types';
+import { sendMessageSocketSchema } from '#/schemas';
 
 // --- Инициализация Prisma Client ---
 const prisma = new PrismaClient();
@@ -56,9 +56,6 @@ const io: AppIoServer = new Server(httpServer, {
     // Рассмотреть возможность указания пути, если Next.js и Socket.IO на одном домене, но разных путях
     // path: '/socket.io/'
 });
-
-console.log('REDIS_HOST', REDIS_HOST);
-console.log('REDIS_PORT', REDIS_PORT);
 
 // --- Настройка Redis Adapter для масштабирования ---
 // Предполагаем использование одиночного экземпляра Redis. Для кластера или Sentinel конфигурация будет сложнее.
@@ -150,6 +147,24 @@ notificationSubscriber.on('message', (channel, message) => {
                         chatData
                     );
                 }
+            } else if (notificationPayload.type === 'MESSAGE_DELETED' && notificationPayload.data) {
+                const { chatId, messageId, action } = notificationPayload.data;
+                if (chatId && messageId && action) {
+                    console.log(
+                        `[Socket.IO Server] Processing MESSAGE_DELETED event for message ID: ${messageId} in chat ID: ${chatId}.`
+                    );
+                    io.of(SOCKET_IO_NAMESPACE)
+                        .to(chatId)
+                        .emit(SERVER_EVENT_MESSAGE_DELETED, { chatId, messageId, action });
+                    console.log(
+                        `[Socket.IO Server] Emitted SERVER_EVENT_MESSAGE_DELETED to room ${chatId} for message ${messageId}`
+                    );
+                } else {
+                    console.warn(
+                        '[Socket.IO Server] Invalid data in MESSAGE_DELETED event:',
+                        notificationPayload.data
+                    );
+                }
             } else {
                 console.warn(
                     `[Socket.IO Server] Received unknown payload type from Redis: ${notificationPayload.type || 'N/A'} on channel ${channel}`
@@ -211,98 +226,117 @@ chatNamespace.on('connection', (socket: AppServerSocket) => {
 
     socket.on(
         CLIENT_EVENT_SEND_MESSAGE,
-        (
+        async (
             payload: ClientSendMessagePayload,
-            // Добавляем ack колбэк, который будет вызван для ответа клиенту
-            // Обновляем тип ack
             ack?: (response: {
                 success: boolean;
                 messageId?: string;
-                createdAt?: Date; // Добавляем createdAt в ack
+                createdAt?: Date;
                 error?: string;
             }) => void
         ) => {
-            const user = socket.data.user;
-            if (!user) {
-                ack?.({ success: false, error: 'Authentication required' });
-                const errorPayload: GeneralSocketErrorPayload = {
-                    message: 'Authentication required to send messages.',
-                    code: 'UNAUTHORIZED',
-                };
-                socket.emit('error', errorPayload);
-                console.warn(
-                    `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Unauthorized user ${socket.id} attempted to send message.`
+            try {
+                const user = socket.data.user;
+                if (!user) {
+                    throw new Error('Для отправки сообщений требуется аутентификация.');
+                }
+
+                // 1. Валидация payload с помощью Zod
+                const validationResult = sendMessageSocketSchema.safeParse(payload);
+                if (!validationResult.success) {
+                    throw new Error(
+                        `Ошибка валидации: ${validationResult.error.flatten().fieldErrors}`
+                    );
+                }
+                const {
+                    chatId,
+                    content,
+                    contentType = 'TEXT',
+                    clientTempId,
+                } = validationResult.data;
+
+                console.log(
+                    `[Socket.IO Server] User ${user.username} is attempting to send a message to chat ${chatId}.`
                 );
-                return;
-            }
 
-            console.log(
-                `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Attempting to save message from ${user.username} (Socket: ${socket.id}) in chat ${payload.chatId}: ${payload.content}`
-            );
-
-            // Сохранение сообщения в БД
-            prisma.message
-                .create({
-                    data: {
-                        chatId: payload.chatId,
-                        senderId: user.userId, // senderId из аутентифицированного пользователя
-                        content: payload.content,
-                        contentType: payload.contentType || PrismaMessageContentType.TEXT,
-                        mediaUrl: payload.mediaUrl,
-                        // readReceipts и другие поля будут по умолчанию или установлены позже
-                    },
-                    include: {
-                        sender: true,
-                        readReceipts: true,
-                    },
-                })
-                .then(savedMessage => {
-                    console.log(
-                        `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Message saved to DB with ID: ${savedMessage.id}`
-                    );
-
-                    const messageData: SocketMessagePayload = {
-                        id: savedMessage.id, // ID из БД
-                        chatId: savedMessage.chatId,
-                        sender: {
-                            // Формируем BasicUser из socket.data.user
-                            id: user.userId,
-                            username: user.username || '',
-                            email: user.email || '',
-                            role: user.role || UserRoleEnum.USER, // Используем UserRoleEnum или Prisma enum
-                            avatarUrl: user.avatarUrl || '',
-                        },
-                        content: savedMessage.content,
-                        contentType: savedMessage.contentType as MessageContentType, // Приведение типа к MessageContentType
-                        mediaUrl: savedMessage.mediaUrl,
-                        createdAt: savedMessage.createdAt, // createdAt из БД
-                        updatedAt: savedMessage.updatedAt, // updatedAt из БД
-                        readReceipts: [], // Начальное значение, будет обновляться
-                        deletedAt: savedMessage.deletedAt, // deletedAt из БД (должно быть null)
-                    };
-
-                    // Отправляем сообщение в указанную комнату (chatId)
-                    chatNamespace
-                        .to(payload.chatId)
-                        .emit(SERVER_EVENT_RECEIVE_MESSAGE, messageData);
-                    console.log(
-                        `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Emitted SERVER_EVENT_RECEIVE_MESSAGE to room ${payload.chatId} for message ${savedMessage.id}`
-                    );
-
-                    // Отправляем подтверждение клиенту
-                    ack?.({
-                        success: true,
-                        messageId: savedMessage.id,
-                        createdAt: savedMessage.createdAt,
-                    });
-                })
-                .catch(error => {
-                    console.error(
-                        `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Error saving message to DB for chat ${payload.chatId}:`,
-                        error
-                    );
-                    ack?.({ success: false, error: 'Failed to save message to database.' });
+                // 2. Проверяем, является ли пользователь участником чата
+                const participant = await prisma.chatParticipant.findFirst({
+                    where: { userId: user.userId, chatId: chatId },
                 });
+
+                if (!participant) {
+                    throw new Error('Вы не являетесь участником этого чата.');
+                }
+
+                // 3. Создаем сообщение и обновляем чат в одной транзакции
+                const [newMessage] = await prisma.$transaction([
+                    prisma.message.create({
+                        data: {
+                            content,
+                            contentType: contentType as PrismaMessageContentType,
+                            chatId,
+                            senderId: user.userId,
+                        },
+                        include: {
+                            sender: {
+                                select: {
+                                    id: true,
+                                    username: true,
+                                    email: true,
+                                    avatarUrl: true,
+                                    role: true,
+                                },
+                            },
+                        },
+                    }),
+                    prisma.chat.update({
+                        where: { id: chatId },
+                        data: { updatedAt: new Date() },
+                    }),
+                ]);
+
+                if (!newMessage) {
+                    throw new Error('Не удалось создать сообщение.');
+                }
+
+                // 4. Создаем полезную нагрузку для отправки клиентам
+                const messagePayload: SocketMessagePayload = {
+                    id: newMessage.id,
+                    chatId: newMessage.chatId,
+                    content: newMessage.content,
+                    contentType: newMessage.contentType,
+                    createdAt: newMessage.createdAt,
+                    updatedAt: newMessage.updatedAt,
+                    sender: {
+                        id: newMessage.sender.id,
+                        username: newMessage.sender.username,
+                        avatarUrl: newMessage.sender.avatarUrl,
+                        role: newMessage.sender.role,
+                        email: newMessage.sender.email,
+                    },
+                    readReceipts: [],
+                    actions: [],
+                    clientTempId, // Включаем временный ID для UI
+                };
+
+                // 5. Отправляем сообщение всем в комнате чата
+                chatNamespace.to(chatId).emit(SERVER_EVENT_RECEIVE_MESSAGE, messagePayload);
+                console.log(`[Socket.IO Server] Message ${newMessage.id} sent to room ${chatId}.`);
+
+                // 6. Отправляем подтверждение отправителю
+                ack?.({
+                    success: true,
+                    messageId: newMessage.id,
+                    createdAt: newMessage.createdAt,
+                });
+            } catch (error) {
+                const errorMessage =
+                    error instanceof Error
+                        ? error.message
+                        : 'Произошла неизвестная ошибка при отправке сообщения.';
+                console.error(`[Socket.IO Server] Error sending message:`, error);
+                ack?.({ success: false, error: errorMessage });
+            }
         }
     );
 
@@ -314,8 +348,6 @@ chatNamespace.on('connection', (socket: AppServerSocket) => {
                 console.warn(
                     `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Unauthorized attempt to mark messages as read.`
                 );
-                // Можно отправить ошибку клиенту, если это необходимо
-                // socket.emit('error', { message: 'Authentication required.', code: 'UNAUTHORIZED' });
                 return;
             }
 
@@ -323,61 +355,66 @@ chatNamespace.on('connection', (socket: AppServerSocket) => {
             const currentReadTime = new Date();
 
             try {
-                // 1. Найти все сообщения в чате, которые:
-                //    - Не были отправлены текущим пользователем (user.userId)
-                //    - Были созданы до или в то же время, что и lastReadMessageId (предполагая, что ID сортируемы по времени или это ID конкретного сообщения)
-                //    - Для которых еще нет записи MessageReadReceipt от этого пользователя
-
-                // Сначала найдем ID всех сообщений, которые должен прочитать пользователь
-                const messagesToMarkAsRead = await prisma.message.findMany({
+                // 1. Найти все потенциальные сообщения для отметки
+                const potentialMessages = await prisma.message.findMany({
                     where: {
                         chatId: chatId,
-                        id: { lte: lastReadMessageId }, // Сообщения до lastReadMessageId включительно
-                        senderId: { not: user.userId }, // Не свои сообщения
-                        readReceipts: {
-                            // И для которых нет записи о прочтении этим пользователем
-                            none: {
-                                userId: user.userId,
-                            },
-                        },
+                        id: { lte: lastReadMessageId },
+                        senderId: { not: user.userId },
                     },
-                    select: {
-                        id: true, // Нам нужны только ID для создания записей о прочтении
-                    },
+                    select: { id: true },
                 });
 
-                if (messagesToMarkAsRead.length === 0) {
+                if (potentialMessages.length === 0) {
+                    return; // Нет сообщений от других пользователей в этом диапазоне
+                }
+
+                const potentialMessageIds = potentialMessages.map(m => m.id);
+
+                // 2. Найти сообщения из этого списка, которые уже прочитаны пользователем
+                const alreadyReadReceipts = await prisma.messageReadReceipt.findMany({
+                    where: {
+                        userId: user.userId,
+                        messageId: { in: potentialMessageIds },
+                    },
+                    select: { messageId: true },
+                });
+
+                const alreadyReadMessageIds = new Set(alreadyReadReceipts.map(r => r.messageId));
+
+                // 3. Определить сообщения, которые действительно нужно пометить как прочитанные
+                const messageIdsToMarkAsRead = potentialMessageIds.filter(
+                    id => !alreadyReadMessageIds.has(id)
+                );
+
+                if (messageIdsToMarkAsRead.length === 0) {
                     console.log(
                         `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] No new messages to mark as read for user ${user.userId} in chat ${chatId} up to message ${lastReadMessageId}.`
                     );
-                    return; // Нет сообщений для отметки
+                    return;
                 }
 
-                const readReceiptsData = messagesToMarkAsRead.map(message => ({
-                    messageId: message.id,
+                const readReceiptsData = messageIdsToMarkAsRead.map(messageId => ({
+                    messageId: messageId,
                     userId: user.userId,
                     readAt: currentReadTime,
                 }));
 
-                // 2. Создать записи MessageReadReceipt для этих сообщений
-                const mr = await prisma.messageReadReceipt.createMany({
+                // 4. Создать записи MessageReadReceipt
+                await prisma.messageReadReceipt.createMany({
                     data: readReceiptsData,
-                    skipDuplicates: true, // Важно, чтобы не было ошибок при повторной попытке (хотя where выше должен это предотвращать)
+                    skipDuplicates: true,
                 });
-
-                console.log('MESSAGE_READ_RECEIPT', mr);
 
                 console.log(
                     `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] User ${user.userId} marked ${readReceiptsData.length} messages as read in chat ${chatId} up to ${lastReadMessageId}.`
                 );
 
-                // 3. Оповестить клиентов в комнате о том, что сообщения прочитаны
-                // Отправляем всем в комнате, включая самого пользователя, который прочитал.
-                // Это позволит UI обновить статусы сообщений.
+                // 5. Оповестить клиентов в комнате о том, что сообщения прочитаны
                 chatNamespace.to(chatId).emit(SERVER_EVENT_MESSAGES_READ, {
                     chatId: chatId,
                     userId: user.userId,
-                    lastReadMessageId: lastReadMessageId, // Отправляем ID последнего сообщения, до которого были прочитаны
+                    lastReadMessageId: lastReadMessageId,
                     readAt: currentReadTime,
                 });
             } catch (error) {
@@ -391,7 +428,7 @@ chatNamespace.on('connection', (socket: AppServerSocket) => {
         }
     );
 
-    socket.on(CLIENT_EVENT_JOIN_CHAT, (chatId: string) => {
+    socket.on(CLIENT_EVENT_JOIN_CHAT, async (chatId: string) => {
         const user = socket.data.user;
         if (!user) {
             socket.emit('error', {
@@ -400,47 +437,92 @@ chatNamespace.on('connection', (socket: AppServerSocket) => {
             } as GeneralSocketErrorPayload);
             return;
         }
-        socket.join(chatId);
-        console.log(
-            `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] User ${user.userId} (Socket: ${socket.id}) joined room: ${chatId}`
-        );
 
-        const presencePayload: SocketUserPresencePayload = {
-            chatId,
-            userId: user.userId,
-            email: user.email!,
-            role: user.role!,
-            username: user.username!,
-        };
-        socket.to(chatId).emit(SERVER_EVENT_USER_JOINED, presencePayload);
-        // Можно отправить подтверждение клиенту:
-        // socket.emit('joinedRoomSuccess', { chatId }); // Если нужно явное подтверждение
+        try {
+            const participant = await prisma.chatParticipant.findFirst({
+                where: {
+                    userId: user.userId,
+                    chatId: chatId,
+                },
+            });
+
+            if (!participant) {
+                console.warn(
+                    `[Socket.IO] User ${user.userId} failed to join chat ${chatId}: not a participant.`
+                );
+                socket.emit('error', {
+                    message: 'You are not a member of this chat.',
+                    code: 'FORBIDDEN',
+                } as GeneralSocketErrorPayload);
+                return;
+            }
+
+            socket.join(chatId);
+            console.log(
+                `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] User ${user.userId} (Socket: ${socket.id}) joined room: ${chatId}`
+            );
+
+            const presencePayload: SocketUserPresencePayload = {
+                chatId,
+                userId: user.userId,
+                email: user.email!,
+                role: participant.role,
+                username: user.username!,
+                avatarUrl: user.avatarUrl || '',
+            };
+            socket.to(chatId).emit(SERVER_EVENT_USER_JOINED, presencePayload);
+        } catch (error) {
+            console.error(
+                `[Socket.IO] Error during JOIN_CHAT for user ${user.userId} in chat ${chatId}:`,
+                error
+            );
+            socket.emit('error', {
+                message: 'An internal error occurred.',
+                code: 'INTERNAL_ERROR',
+            } as GeneralSocketErrorPayload);
+        }
     });
 
-    socket.on(CLIENT_EVENT_LEAVE_CHAT, (chatId: string) => {
+    socket.on(CLIENT_EVENT_LEAVE_CHAT, async (chatId: string) => {
         const user = socket.data.user;
         if (!user) {
-            // Ошибку можно не отправлять, т.к. выход из комнаты неаутентифицированным не критичен
-            // но залогировать стоит.
             console.warn(
-                `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] Anonymous user ${socket.id} attempted to leave room ${chatId}`
+                `[Socket.IO] Anonymous user ${socket.id} attempted to leave room ${chatId}`
             );
             return;
         }
 
-        socket.leave(chatId);
-        console.log(
-            `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] User ${user.userId} (Socket: ${socket.id}) left room: ${chatId}`
-        );
+        try {
+            const participant = await prisma.chatParticipant.findFirst({
+                where: {
+                    userId: user.userId,
+                    chatId: chatId,
+                },
+                select: { role: true },
+            });
 
-        const presencePayload: SocketUserPresencePayload = {
-            chatId,
-            userId: user.userId,
-            email: user.email!,
-            role: user.role!,
-            username: user.username!,
-        };
-        socket.to(chatId).emit(SERVER_EVENT_USER_LEFT, presencePayload);
+            socket.leave(chatId);
+            console.log(
+                `[Socket.IO Server ${SOCKET_IO_NAMESPACE}] User ${user.userId} (Socket: ${socket.id}) left room: ${chatId}`
+            );
+
+            if (participant) {
+                const presencePayload: SocketUserPresencePayload = {
+                    chatId,
+                    userId: user.userId,
+                    email: user.email!,
+                    role: participant.role,
+                    username: user.username!,
+                    avatarUrl: user.avatarUrl || '',
+                };
+                socket.to(chatId).emit(SERVER_EVENT_USER_LEFT, presencePayload);
+            }
+        } catch (error) {
+            console.error(
+                `[Socket.IO] Error during LEAVE_CHAT for user ${user.userId} in chat ${chatId}:`,
+                error
+            );
+        }
     });
 
     // Обработчик для кастомных ошибок от клиента, если такие будут

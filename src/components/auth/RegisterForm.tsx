@@ -29,12 +29,8 @@ export function RegisterForm() {
             return;
         }
 
-        try {
-            // auth.register в AuthProvider обрабатывает редирект
-            await auth.register({ username, email, password });
-        } catch (err: any) {
-            console.error('Ошибка при вызове auth.register из RegisterForm:', err.message);
-        }
+        // auth.register в AuthProvider обрабатывает редирект и ошибки
+        await auth.register({ username, email, password });
     };
 
     return (

@@ -1,6 +1,8 @@
-import { Prisma, type MessageContentType, type MessageReadReceipt } from '@prisma/client';
+import { Prisma, type MessageReadReceipt, type MessageContentType } from '@prisma/client';
 import type { Chat, PrismaChatParticipant } from '../chat';
 import type { BasicUser, User } from '../user';
+import { z } from 'zod';
+import type { displayMessageSchema } from '@/schemas';
 
 export { MessageReadReceipt, MessageContentType };
 
@@ -8,12 +10,22 @@ export type Message = Prisma.MessageGetPayload<{
     include: {
         sender: true; // Включаем связанную модель User
         readReceipts: true; // Включаем связанные MessageReadReceipt
+        actions: {
+            include: {
+                actor: {
+                    select: {
+                        id: true;
+                        username: true;
+                    };
+                };
+            };
+        };
     };
 }>;
 
 // Тип для участника чата с выбранными полями пользователя
 export type ChatParticipantWithUser = PrismaChatParticipant & {
-    user: Pick<User, 'id' | 'username' | 'avatarUrl' | 'email' | 'role' >;
+    user: Pick<User, 'id' | 'username' | 'avatarUrl' | 'email' | 'role'>;
 };
 
 // Тип для сообщения со всеми необходимыми включениями (детализированное сообщение)
@@ -32,22 +44,21 @@ export type ChatWithDetails = Chat & {
 export type MessageReadReceiptDisplay = Pick<MessageReadReceipt, 'userId' | 'readAt'>;
 
 /**
- * Тип сообщения, оптимизированный для отображения в UI (например, в ChatListItem).
- * Содержит только необходимые поля.
+ * @description Тип для сообщения, готового к отображению на клиенте.
+ * Включает полную информацию об отправителе.
+ * Выводится из Zod-схемы для гарантии синхронизации.
  */
-export interface DisplayMessage {
-    id?: string; // ID сообщения
-    chatId: string; // ID чата
-    sender: BasicUser; // Отправитель (облегченная версия)
-    content: string; // Текстовое содержимое
-    createdAt: Date; // Время создания (всегда Date)
-    updatedAt?: Date | null; // Время обновления (всегда Date)
-    contentType: MessageContentType; // Тип контента
-    mediaUrl?: string | null; // URL для медиа-контента
-    readReceipts?: MessageReadReceiptDisplay[]; // Статусы прочтения (опционально для отображения)
-    deletedAt?: Date | null; // Если сообщение удалено (всегда Date или null)
-    isCurrentUser?: boolean; // Флаг, является ли сообщение от текущего пользователя (для UI)
-    isEdited?: boolean; // Флаг, является ли сообщение отредактированным (для UI)
-    // Можно добавить другие флаги или вычисляемые поля, специфичные для UI
-    // Например, isEdited, isPinned, isFirstInSequence, etc.
-}
+export type DisplayMessage = z.infer<typeof displayMessageSchema>;
+
+export type MessageAction = Prisma.MessageActionGetPayload<{
+    include: {
+        actor: {
+            select: {
+                id: true;
+                username: true;
+            };
+        };
+    };
+}>;
+
+export type ClientMessageAction = Omit<MessageAction, 'messageId' | 'actorId'>;

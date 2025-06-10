@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { handleApiError, ApiError, prisma, getCurrentUser } from '@/lib';
 import { ClientUser } from '@/types';
-
-const updateUserSchema = z.object({
-    username: z
-        .string()
-        .min(3, 'Имя пользователя должно содержать минимум 3 символа')
-        .max(30)
-        .optional(),
-    // email: z.string().email('Некорректный email').optional(), // Если будем обновлять email
-});
+import { updateUserSchema } from '@/schemas';
 
 /**
  * @swagger
@@ -106,7 +97,7 @@ export async function PATCH(req: NextRequest) {
         // TODO: Если будем обновлять email, потребуется логика ре-верификации и возможно проверка уникальности нового email
 
         const updatedUser = await prisma.user.update({
-            where: { id: currentUser.userId },
+            where: { id: currentUser.id },
             data: {
                 ...(username && { username }),
                 // ...(email && { email, isVerified: false, verificationToken: generateNewToken(), verificationTokenExpires: setNewExpiry() }),
@@ -118,7 +109,9 @@ export async function PATCH(req: NextRequest) {
             username: updatedUser.username,
             email: updatedUser.email,
             role: updatedUser.role,
-            avatarUrl: '',
+            avatarUrl: updatedUser.avatarUrl,
+            createdAt: updatedUser.createdAt,
+            updatedAt: updatedUser.updatedAt,
         };
 
         return NextResponse.json({ user: clientUser }, { status: 200 });
@@ -131,4 +124,3 @@ export async function PATCH(req: NextRequest) {
         });
     }
 }
- 

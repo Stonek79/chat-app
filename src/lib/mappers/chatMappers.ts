@@ -1,95 +1,103 @@
 import type {
     ClientChat,
-    ChatLastMessage,
-    ClientChatParticipant,
     Chat as PrismaChat,
     PrismaChatParticipant,
     User as PrismaUser,
     Message as PrismaMessage,
     MessageReadReceipt,
+    MessageAction,
 } from '@/types';
+import { clientChatSchema } from '@/schemas';
+import { z } from 'zod';
+import { mapPrismaMessageToDisplayMessage } from './messageMappers';
 
 /**
- * Extended type for Prisma Chat, including related participant and message data,
- * necessary for forming the client-side representation of a chat.
- * Note: PrismaChatParticipant here will have its 'role' field typed as ChatParticipantRole.
+ * @description Расширенный тип для чата Prisma, включающий связанные данные об участниках и сообщениях,
+ * необходимые для формирования представления чата на стороне клиента.
+ * @примечание Поле `role` в `PrismaChatParticipant` будет иметь тип `ChatParticipantRole`.
  */
 export type PrismaChatWithDetails = PrismaChat & {
     participants: (PrismaChatParticipant & {
-        user: Pick<PrismaUser, 'id' | 'username' | 'avatarUrl' | 'email'>;
-        // role is part of PrismaChatParticipant and will be ChatParticipantRole
+        user: Pick<PrismaUser, 'id' | 'username' | 'avatarUrl' | 'email' | 'role'>;
     })[];
     messages: (PrismaMessage & {
         readReceipts: MessageReadReceipt[];
         sender: Pick<PrismaUser, 'id' | 'username' | 'email' | 'avatarUrl'>;
+        actions: MessageAction[];
     })[];
+    _count?: {
+        messages: number;
+    };
+    creatorId?: string | null;
 };
 
 /**
- * Converts a Prisma chat object (with details) to the ClientChat format suitable for the client.
+ * @description Преобразует объект чата Prisma (с деталями) в формат `ClientChat`, подходящий для клиента.
  *
- * @param chatDb - The chat object from the database, including participants and last messages.
- * @param currentUserId - The ID of the currently authenticated user, necessary for correctly
- *                        determining the name and avatar of a private chat.
- * @returns A ClientChat object or null if the input data is incorrect.
+ * @param {ChatWithDetails} chat - Объект чата из базы данных, включая участников и последние сообщения.
+ * @param {string} currentUserId - ID текущего аутентифицированного пользователя, необходимый для
+ *                                 корректного определения имени и аватара приватного чата.
+ * @returns {ClientChat} Клиентский безопасный объект чата.
  */
 export const mapPrismaChatToClientChat = (
     chatDb: PrismaChatWithDetails,
     currentUserId: string
-): ClientChat | null => {
+): ClientChat => {
     if (!chatDb) {
-        return null;
+        throw new Error('mapPrismaChatToClientChat: chatDb is null or undefined');
     }
 
-    let chatName = chatDb.name;
-    let chatAvatarUrl: string | null | undefined = chatDb.isGroupChat ? chatDb.avatarUrl : null;
+    const {
+        id,
+        name,
+        isGroupChat,
+        creatorId,
+        participants,
+        messages,
+        createdAt,
+        updatedAt,
+        // @ts-ignore Prisma _count extension
+        _count: count,
+    } = chatDb;
 
-    const chatParticipantsData: ClientChatParticipant[] = chatDb.participants.map(p => ({
-        id: p.user.id,
-        username: p.user.username,
-        avatarUrl: p.user.avatarUrl,
-        role: p.role,
-        email: p.user.email,
-    }));
+    const lastMessage = messages?.[0] ? mapPrismaMessageToDisplayMessage(messages[0]) : null;
 
-    if (!chatDb.isGroupChat) {
-        const otherParticipant = chatDb.participants.find(p => p.user.id !== currentUserId);
-        if (otherParticipant && otherParticipant.user) {
+    let chatName = name;
+    let chatAvatar = null;
+
+    if (!isGroupChat && participants.length === 2) {
+        const otherParticipant = participants.find(p => p.user.id !== currentUserId);
+        if (otherParticipant?.user) {
             chatName = otherParticipant.user.username;
-            chatAvatarUrl = otherParticipant.user.avatarUrl;
+            chatAvatar = otherParticipant.user.avatarUrl;
         } else {
-            chatName =
-                chatDb.name ||
-                (chatParticipantsData.length === 1 && chatParticipantsData[0].id === currentUserId
-                    ? chatParticipantsData[0].username
-                    : 'Личный чат');
-            if (chatParticipantsData.length === 1 && chatParticipantsData[0].id === currentUserId) {
-                chatAvatarUrl = chatParticipantsData[0].avatarUrl;
-            }
+            // Запасной вариант для чатов только с текущим пользователем (например, "Избранное")
+            chatName = participants[0]?.user.username ?? 'Личный чат';
+            chatAvatar = participants[0]?.user.avatarUrl ?? null;
         }
     }
 
-    const lastMessageData =
-        chatDb.messages && chatDb.messages.length > 0 ? chatDb.messages[0] : null;
+    const finalAvatarUrl =
+        chatAvatar && z.string().url().safeParse(chatAvatar).success ? chatAvatar : null;
 
-    const lastMessageClient: ChatLastMessage | undefined = lastMessageData
-        ? {
-              id: lastMessageData.id,
-              content: lastMessageData.content,
-              createdAt: lastMessageData.createdAt,
-              senderId: lastMessageData.sender.id,
-              senderUsername: lastMessageData.sender.username,
-              senderEmail: lastMessageData.sender.email,
-          }
-        : undefined;
-
-    return {
-        id: chatDb.id,
+    const clientChat = {
+        id,
         name: chatName,
-        isGroupChat: chatDb.isGroupChat,
-        avatarUrl: chatAvatarUrl,
-        members: chatParticipantsData,
-        lastMessage: lastMessageClient,
-        messages: chatDb.messages,
+        isGroupChat,
+        creatorId,
+        members: participants.map(p => ({
+            id: p.user.id,
+            username: p.user.username,
+            avatarUrl: p.user.avatarUrl,
+            email: p.user.email,
+            role: p.role,
+        })),
+        lastMessage,
+        avatarUrl: finalAvatarUrl,
+        unreadCount: count?.messages,
+        createdAt,
+        updatedAt,
     };
+
+    return clientChatSchema.parse(clientChat);
 };

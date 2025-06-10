@@ -15,13 +15,9 @@ interface LoginFormProps {
     onLoginSuccess?: (redirectPath: string) => void;
 }
 
-// TODO: переписать на серверный компонент, абрать хуки в дочерние компоненты   
+// TODO: переписать на серверный компонент, абрать хуки в дочерние компоненты
 
-export function LoginForm({
-    returnTo,
-    registrationSuccess,
-    onLoginSuccess,
-}: LoginFormProps) {
+export function LoginForm({ returnTo, registrationSuccess, onLoginSuccess }: LoginFormProps) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const auth = useAuth();
@@ -42,24 +38,20 @@ export function LoginForm({
             return;
         }
 
-        try {
-            const loggedInUser = await auth.login({ email, password }, returnTo);
-            if (loggedInUser) {
-                let redirectPath =
-                    returnTo &&
-                    returnTo.startsWith('/') &&
-                    !returnTo.startsWith('//') &&
-                    !returnTo.includes(':')
-                        ? returnTo
-                        : HOME_PAGE_ROUTE;
-                if (onLoginSuccess) {
-                    onLoginSuccess(redirectPath);
-                } else {
-                    router.push(redirectPath);
-                }
+        const loggedInUser = await auth.login({ email, password }, returnTo);
+        if (loggedInUser) {
+            let redirectPath =
+                returnTo &&
+                returnTo.startsWith('/') &&
+                !returnTo.startsWith('//') &&
+                !returnTo.includes(':')
+                    ? returnTo
+                    : HOME_PAGE_ROUTE;
+            if (onLoginSuccess) {
+                onLoginSuccess(redirectPath);
+            } else {
+                router.push(redirectPath);
             }
-        } catch (err: any) {
-            console.error('Ошибка при вызове auth.login из LoginForm:', err.message);
         }
     };
 

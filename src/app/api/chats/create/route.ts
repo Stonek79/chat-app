@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import {
     getRedisPublisher,
     getCurrentUser,
@@ -10,21 +9,11 @@ import {
 } from '@/lib';
 import type { AuthenticatedUser } from '@/types';
 import { ChatParticipantRoleEnum } from '@/constants';
-
-// Схема валидации для создания чата
-const createChatSchema = z.object({
-    name: z.string().min(1).max(30).optional(), // Обязательно для групповых, опционально для приватных
-    participantIds: z
-        .array(z.string().cuid())
-        .min(1, 'Должен быть как минимум один участник (помимо создателя для групповых)'),
-    isGroupChat: z.boolean(),
-});
-
-// Тип для данных запроса после валидации
-type CreateChatPayload = z.infer<typeof createChatSchema>;
+import { createGroupChatSchema, createPrivateChatSchema } from '@/schemas';
 
 /**
- * API маршрут для создания нового чата.
+ * API маршрут для создания нового чата (личного или группового).
+ * Логика определяется на основе тела запроса.
  * @param {NextRequest} request - Запрос на создание чата.
  * @returns {Promise<NextResponse>} Ответ сервера.
  */
@@ -34,129 +23,35 @@ export async function POST(request: NextRequest) {
         if (!currentUser) {
             throw new ApiError('Неавторизован', 401);
         }
-        const creatorId = currentUser.userId;
+        const creatorId = currentUser.id;
 
         const body = await request.json();
-        const validationResult = createChatSchema.safeParse(body);
 
-        if (!validationResult.success) {
-            // Собираем ошибки валидации в более читаемый формат
-            const errors = validationResult.error.flatten().fieldErrors;
-            console.warn('Validation errors:', JSON.stringify(errors, null, 2));
-            const errorMessages = Object.values(errors).flat().join(', ');
-            throw new ApiError(`Ошибка валидации: ${errorMessages}`, 400, errors);
-        }
-
-        const { name, participantIds, isGroupChat }: CreateChatPayload = validationResult.data;
-
-        // Дополнительная логика валидации в зависимости от типа чата
-        if (isGroupChat && (!name || name.trim() === '')) {
-            throw new ApiError('Имя группового чата обязательно', 400);
-        }
-        if (!isGroupChat && participantIds.length !== 1) {
-            // Для приватного чата ожидается один ID собеседника. Создатель добавляется автоматически.
-            throw new ApiError('Для приватного чата должен быть указан один ID собеседника', 400);
-        }
-        if (participantIds.includes(creatorId)) {
-            throw new ApiError('Создатель не может быть в списке участников для добавления.', 400);
-        }
+        // Определяем, это групповой или личный чат
+        const isGroupChat = 'name' in body && 'memberIds' in body;
 
         let newChatWithDetails;
 
-        if (!isGroupChat) {
-            // --- Логика для ПРИВАТНОГО чата ---
-            const otherUserId = participantIds[0];
+        if (isGroupChat) {
+            // --- Логика для ГРУППОВОГО чата ---
+            const validationResult = createGroupChatSchema.safeParse(body);
+            if (!validationResult.success) {
+                throw new ApiError(
+                    'Ошибка валидации данных для группового чата',
+                    400,
+                    validationResult.error.flatten().fieldErrors
+                );
+            }
+            const { name, memberIds } = validationResult.data;
 
-            // Проверка на существование приватного чата между этими двумя пользователями
-            const existingChat = await prisma.chat.findFirst({
-                where: {
-                    isGroupChat: false,
-                    AND: [
-                        { participants: { some: { userId: creatorId } } },
-                        { participants: { some: { userId: otherUserId } } },
-                    ],
-                },
-                include: {
-                    participants: {
-                        include: {
-                            user: {
-                                select: {
-                                    id: true,
-                                    username: true,
-                                    avatarUrl: true,
-                                    email: true,
-                                },
-                            },
-                        },
-                    },
-                    messages: {
-                        orderBy: { createdAt: 'desc' },
-                        take: 1,
-                        include: { sender: true, readReceipts: true },
-                    },
-                },
-            });
-
-            if (existingChat) {
-                // Если чат уже существует, просто возвращаем его
-                const clientChat = mapPrismaChatToClientChat(existingChat, creatorId);
-                return NextResponse.json(clientChat, { status: 200 }); // Статус 200, так как не создаем новый
+            if (memberIds.includes(creatorId)) {
+                throw new ApiError('Создатель не может быть в списке участников.', 400);
             }
 
-            newChatWithDetails = await prisma.$transaction(async tx => {
-                const chat = await tx.chat.create({
-                    data: {
-                        isGroupChat: false,
-                        // Имя для приватных чатов не устанавливается на сервере
-                    },
-                });
-
-                await tx.chatParticipant.createMany({
-                    data: [
-                        {
-                            chatId: chat.id,
-                            userId: creatorId,
-                            role: ChatParticipantRoleEnum.MEMBER,
-                        },
-                        {
-                            chatId: chat.id,
-                            userId: otherUserId,
-                            role: ChatParticipantRoleEnum.MEMBER,
-                        },
-                    ],
-                });
-
-                // Возвращаем созданный чат с деталями для маппинга
-                return tx.chat.findUniqueOrThrow({
-                    where: { id: chat.id },
-                    include: {
-                        participants: {
-                            include: {
-                                user: {
-                                    select: {
-                                        id: true,
-                                        username: true,
-                                        avatarUrl: true,
-                                        email: true,
-                                    },
-                                },
-                            },
-                        },
-                        messages: {
-                            orderBy: { createdAt: 'desc' },
-                            take: 1,
-                            include: { sender: true, readReceipts: true },
-                        },
-                    },
-                });
-            });
-        } else {
-            // --- Логика для ГРУППОВОГО чата ---
-            if (participantIds.length === 0) {
-                throw new ApiError(
-                    'В групповом чате должен быть как минимум один добавленный участник (помимо создателя).',
-                    400
-                );
+            // Проверяем, что все участники существуют
+            const membersExist = await prisma.user.count({ where: { id: { in: memberIds } } });
+            if (membersExist !== memberIds.length) {
+                throw new ApiError('Один или несколько участников не найдены.', 404);
             }
 
             newChatWithDetails = await prisma.$transaction(async tx => {
@@ -169,7 +64,7 @@ export async function POST(request: NextRequest) {
 
                 const participantsToCreate = [
                     { chatId: chat.id, userId: creatorId, role: ChatParticipantRoleEnum.OWNER },
-                    ...participantIds.map(id => ({
+                    ...memberIds.map(id => ({
                         chatId: chat.id,
                         userId: id,
                         role: ChatParticipantRoleEnum.MEMBER,
@@ -192,6 +87,7 @@ export async function POST(request: NextRequest) {
                                         username: true,
                                         avatarUrl: true,
                                         email: true,
+                                        role: true,
                                     },
                                 },
                             },
@@ -199,7 +95,145 @@ export async function POST(request: NextRequest) {
                         messages: {
                             orderBy: { createdAt: 'desc' },
                             take: 1,
-                            include: { sender: true, readReceipts: true },
+                            include: {
+                                sender: true,
+                                readReceipts: true,
+                                actions: {
+                                    include: {
+                                        actor: {
+                                            select: {
+                                                id: true,
+                                                username: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+            });
+        } else {
+            // --- Логика для ПРИВАТНОГО чата ---
+            const validationResult = createPrivateChatSchema.safeParse(body);
+            if (!validationResult.success) {
+                throw new ApiError(
+                    'Ошибка валидации данных для приватного чата',
+                    400,
+                    validationResult.error.flatten().fieldErrors
+                );
+            }
+            const { recipientId } = validationResult.data;
+
+            if (recipientId === creatorId) {
+                throw new ApiError('Нельзя создать чат с самим собой.', 400);
+            }
+
+            // Проверка на существование приватного чата между этими двумя пользователями
+            const existingChat = await prisma.chat.findFirst({
+                where: {
+                    isGroupChat: false,
+                    AND: [
+                        { participants: { some: { userId: creatorId } } },
+                        { participants: { some: { userId: recipientId } } },
+                    ],
+                },
+                include: {
+                    participants: {
+                        include: {
+                            user: {
+                                select: {
+                                    id: true,
+                                    username: true,
+                                    avatarUrl: true,
+                                    email: true,
+                                    role: true,
+                                },
+                            },
+                        },
+                    },
+                    messages: {
+                        orderBy: { createdAt: 'desc' },
+                        take: 1,
+                        include: {
+                            sender: true,
+                            readReceipts: true,
+                            actions: {
+                                include: {
+                                    actor: {
+                                        select: {
+                                            id: true,
+                                            username: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            if (existingChat) {
+                const clientChat = mapPrismaChatToClientChat(existingChat, creatorId);
+                return NextResponse.json(clientChat, { status: 200 }); // Статус 200, так как не создаем новый
+            }
+
+            newChatWithDetails = await prisma.$transaction(async tx => {
+                const chat = await tx.chat.create({
+                    data: {
+                        isGroupChat: false,
+                    },
+                });
+
+                await tx.chatParticipant.createMany({
+                    data: [
+                        {
+                            chatId: chat.id,
+                            userId: creatorId,
+                            role: ChatParticipantRoleEnum.MEMBER,
+                        },
+                        {
+                            chatId: chat.id,
+                            userId: recipientId,
+                            role: ChatParticipantRoleEnum.MEMBER,
+                        },
+                    ],
+                });
+
+                // Возвращаем созданный чат с деталями для маппинга
+                return tx.chat.findUniqueOrThrow({
+                    where: { id: chat.id },
+                    include: {
+                        participants: {
+                            include: {
+                                user: {
+                                    select: {
+                                        id: true,
+                                        username: true,
+                                        avatarUrl: true,
+                                        email: true,
+                                        role: true,
+                                    },
+                                },
+                            },
+                        },
+                        messages: {
+                            orderBy: { createdAt: 'desc' },
+                            take: 1,
+                            include: {
+                                sender: true,
+                                readReceipts: true,
+                                actions: {
+                                    include: {
+                                        actor: {
+                                            select: {
+                                                id: true,
+                                                username: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
                         },
                     },
                 });
@@ -209,39 +243,30 @@ export async function POST(request: NextRequest) {
         const clientChat = mapPrismaChatToClientChat(newChatWithDetails, creatorId);
 
         if (clientChat) {
-            // Убедимся, что чат успешно смаплен
-            // Шаг 1.7 - Интеграция с Socket.IO / Redis для уведомления участников
             try {
                 const notificationPayload = {
-                    type: 'NEW_CHAT', // Тип уведомления для обработки на socket-server
+                    type: 'NEW_CHAT',
                     data: {
-                        chatData: clientChat, // Данные уже в формате ClientChat
-                        initiatorUserId: creatorId, // Пользователь, инициировавший создание
+                        chatData: clientChat,
+                        initiatorUserId: creatorId,
                     },
                 };
-                // Канал для уведомлений, на который подписан socket-server
                 const redisChannel =
                     process.env.REDIS_SOCKET_NOTIFICATIONS_CHANNEL || 'socket-notifications';
-
-                const redisPub = await getRedisPublisher(); // Получаем паблишер
+                const redisPub = await getRedisPublisher();
                 if (redisPub) {
                     await redisPub.publish(redisChannel, JSON.stringify(notificationPayload));
                     console.log(
-                        `[API Create Chat] Published NEW_CHAT event to Redis channel ${redisChannel} for chat ${clientChat.id}`
+                        `[API Create Chat] Published NEW_CHAT event to Redis for chat ${clientChat.id}`
                     );
                 } else {
-                    console.error(
-                        '[API Create Chat] Redis publisher is not available. Could not publish NEW_CHAT event.'
-                    );
-                    // Здесь можно добавить более сложную логику обработки, если необходимо
-                    // Например, поместить уведомление в очередь или записать в лог для последующей обработки
+                    console.error('[API Create Chat] Redis publisher is not available.');
                 }
             } catch (redisError) {
                 console.error(
                     '[API Create Chat] Failed to publish NEW_CHAT event to Redis:',
                     redisError
                 );
-                // Не прерываем основной ответ из-за ошибки Redis, но логируем
             }
         }
 

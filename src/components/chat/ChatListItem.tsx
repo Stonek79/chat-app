@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Box, Typography, Paper, IconButton, Menu, MenuItem, Avatar } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
@@ -8,6 +8,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { DisplayMessage } from '@/types';
+import { MessageActionTypeEnum } from '@/constants';
 
 interface MessageItemProps {
     message: DisplayMessage;
@@ -21,13 +22,13 @@ interface MessageItemProps {
  * Компонент для отображения отдельного сообщения в чате
  * Поддерживает различные типы контента и действия с сообщением
  */
-export function ChatListItem({
+const ChatListItemComponent = ({
     message,
     currentUserId,
     isAdmin,
     onEdit,
     onDelete,
-}: MessageItemProps) {
+}: MessageItemProps) => {
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 
     const isCurrentUser =
@@ -37,12 +38,17 @@ export function ChatListItem({
 
     const isSystemMessage = message.contentType === 'SYSTEM';
 
+    // Проверяем, удалено ли сообщение
+    const deleteAction = message.actions?.find(
+        action => action.type === MessageActionTypeEnum.DELETED
+    );
+
     // TODO проверить корректность работы с датами, дополнить конфиг пользователя для установки времени редактирования и удаления сообщения от 5 до 15 минут.
     // Админ может удалять и редактировать сообщения любого пользователя в любое время без ограничений.
-    const modifyMessageLimit = new Date(message.createdAt).getTime() + 10 * 60 * 1000;
+    const modifyMessageLimit = new Date(message.createdAt).getTime() + 15 * 60 * 1000;
 
     const canModifyMessage = () => {
-        if (message.deletedAt) return false;
+        if (deleteAction) return false;
         if (isSystemMessage) return false;
         if (isAdmin) return true;
         if (isCurrentUser) {
@@ -52,11 +58,11 @@ export function ChatListItem({
         return false;
     };
 
-    const formatMessageTime = (dateValue: Date) => {
+    const formatTime = (date: Date | string) => {
         try {
-            return format(dateValue, 'HH:mm', { locale: ru });
+            return format(new Date(date), 'HH:mm', { locale: ru });
         } catch (error) {
-            console.error('Error formatting message time:', error);
+            console.error('Error formatting time:', error);
             return '';
         }
     };
@@ -75,12 +81,14 @@ export function ChatListItem({
     };
 
     const handleDelete = () => {
-        onDelete(String(message.id));
+        if (message.id) {
+            onDelete(message.id);
+        }
         handleMenuClose();
     };
 
     const renderMessageContent = () => {
-        if (message.deletedAt) {
+        if (deleteAction) {
             return (
                 <Typography variant="body2" color="text.secondary" fontStyle="italic">
                     Сообщение удалено
@@ -91,71 +99,26 @@ export function ChatListItem({
         switch (message.contentType) {
             case 'IMAGE':
                 return (
-                    <Box sx={{ mt: 1 }}>
-                        {message.mediaUrl && (
-                            <img
-                                src={message.mediaUrl}
-                                alt={message.content || 'Изображение'}
-                                style={{
-                                    maxWidth: '100%',
-                                    maxHeight: '300px',
-                                    borderRadius: '8px',
-                                }}
-                            />
-                        )}
-                        {message.content && message.mediaUrl && (
-                            <Typography variant="body1" sx={{ mt: 1 }}>
-                                {message.content}
-                            </Typography>
-                        )}
-                        {!message.mediaUrl && message.content && (
-                            <Typography variant="body1">{message.content}</Typography>
-                        )}
-                    </Box>
-                );
-
-            case 'VIDEO':
-                return (
-                    <Box sx={{ mt: 1 }}>
-                        {message.mediaUrl && (
-                            <video
-                                controls
-                                style={{
-                                    maxWidth: '100%',
-                                    maxHeight: '300px',
-                                    borderRadius: '8px',
-                                }}
-                            >
-                                <source src={message.mediaUrl} />
-                                Ваш браузер не поддерживает видео.
-                            </video>
-                        )}
-                        {message.content && message.mediaUrl && (
-                            <Typography variant="body1" sx={{ mt: 1 }}>
-                                {message.content}
-                            </Typography>
-                        )}
-                        {!message.mediaUrl && message.content && (
-                            <Typography variant="body1">{message.content}</Typography>
-                        )}
-                    </Box>
-                );
-
-            case 'TEXT':
-            default:
-                return (
-                    <Typography
+                    <Box
+                        component="img"
+                        src={message.mediaUrl ?? ''}
+                        alt="Изображение"
                         sx={{
-                            overflowWrap: 'break-word',
-                            wordBreak: 'break-word',
-                            whiteSpace: 'pre-line',
-                            hyphens: 'auto',
+                            maxWidth: '100%',
+                            maxHeight: '300px',
+                            borderRadius: 1,
+                            mt: 1,
                         }}
-                        variant="body1"
-                    >
+                    />
+                );
+            case 'SYSTEM':
+                return (
+                    <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
                         {message.content}
                     </Typography>
                 );
+            default:
+                return <Typography variant="body2">{message.content}</Typography>;
         }
     };
 
@@ -170,25 +133,169 @@ export function ChatListItem({
     const senderDisplayName = getSenderName();
 
     const renderMessageStatus = () => {
-        if (!isCurrentUser || !message.id || isSystemMessage || message.deletedAt) {
+        if (!isCurrentUser || !message.id || isSystemMessage || deleteAction) {
             return null;
         }
+
+        const readByAll =
+            message.readReceipts &&
+            message.readReceipts.length > 0 &&
+            message.readReceipts.every(r => r.readAt);
+
+        const readBySome =
+            message.readReceipts &&
+            message.readReceipts.length > 0 &&
+            message.readReceipts.some(r => r.readAt);
 
         const readByOthers = message.readReceipts?.some(
             receipt => receipt.userId !== currentUserId
         );
 
-        console.log('readByOthers', readByOthers, message.readReceipts);
-        
-
         if (readByOthers) {
-            return <DoneAllIcon fontSize="inherit" sx={{ color: '#4fc3f7', ml: 0.5 }} />;
+            return <DoneAllIcon fontSize="inherit" color="info" />;
+        } else if (readByAll) {
+            return <DoneAllIcon fontSize="inherit" color="success" />;
+        } else if (readBySome) {
+            return <DoneAllIcon fontSize="inherit" />;
+        } else {
+            return <CheckIcon fontSize="inherit" />;
         }
-        // Если есть message.id, значит оно как минимум доставлено на сервер
+    };
+
+    const renderTimestampAndStatus = () => {
+        if (deleteAction) {
+            const actor = deleteAction.actor;
+
+            if (!actor) {
+                return (
+                    <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                        Сообщение было удалено.
+                    </Typography>
+                );
+            }
+
+            const amIDeleter = actor.id === currentUserId;
+
+            return (
+                <>
+                    <Typography component="span" variant="body2" sx={{ fontStyle: 'italic' }}>
+                        {amIDeleter ? (
+                            'Вы удалили сообщение'
+                        ) : (
+                            <>
+                                Сообщение удалено пользователем <b>{actor.username}</b>
+                            </>
+                        )}
+                    </Typography>
+                    <Typography
+                        variant="caption"
+                        sx={{
+                            opacity: 0.7,
+                            ml: 1,
+                        }}
+                    >
+                        {formatTime(deleteAction.createdAt)}
+                    </Typography>
+                </>
+            );
+        }
+
         return (
-            <CheckIcon fontSize="inherit" sx={{ color: 'text.secondary', opacity: 0.7, ml: 0.5 }} />
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    mt: 0.5,
+                }}
+            >
+                <Typography
+                    variant="caption"
+                    sx={{
+                        color: isCurrentUser ? 'primary.contrastText' : 'text.secondary',
+                        opacity: 0.7,
+                        mr: 0.5,
+                    }}
+                >
+                    {message.isEdited && !isSystemMessage && (
+                        <Typography component="span" sx={{ fontStyle: 'italic', mr: 0.5 }}>
+                            (изм.)
+                        </Typography>
+                    )}
+                    {formatTime(message.createdAt)}
+                </Typography>
+
+                {renderMessageStatus()}
+            </Box>
         );
     };
+
+    if (deleteAction) {
+        const actor = deleteAction.actor;
+        const isCurrentUserSender = message.sender && message.sender.id === currentUserId;
+
+        // Резервный вариант на случай некорректных данных
+        if (!actor) {
+            return (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                    <Paper
+                        elevation={0}
+                        sx={{ p: 1.5, backgroundColor: 'transparent', color: 'text.secondary' }}
+                    >
+                        <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                            Сообщение было удалено.
+                        </Typography>
+                    </Paper>
+                </Box>
+            );
+        }
+
+        const amIDeleter = actor.id === currentUserId;
+
+        return (
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: isSystemMessage
+                        ? 'center'
+                        : isCurrentUserSender
+                          ? 'flex-end'
+                          : 'flex-start',
+                    mb: 2,
+                }}
+            >
+                <Paper
+                    elevation={0}
+                    sx={{
+                        p: 1.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: 'transparent',
+                        color: 'text.secondary',
+                    }}
+                >
+                    <Typography component="span" variant="body2" sx={{ fontStyle: 'italic' }}>
+                        {amIDeleter ? (
+                            'Вы удалили сообщение'
+                        ) : (
+                            <>
+                                Сообщение удалено пользователем <b>{actor.username}</b>
+                            </>
+                        )}
+                    </Typography>
+                    <Typography
+                        variant="caption"
+                        sx={{
+                            opacity: 0.7,
+                            ml: 1,
+                        }}
+                    >
+                        {formatTime(deleteAction.createdAt)}
+                    </Typography>
+                </Paper>
+            </Box>
+        );
+    }
 
     return (
         <Box
@@ -200,139 +307,94 @@ export function ChatListItem({
                       ? 'flex-end'
                       : 'flex-start',
                 mb: 2,
-                position: 'relative',
             }}
         >
-            <Paper
-                elevation={1}
-                sx={{
-                    p: 1.5,
-                    width: isSystemMessage ? 'auto' : 'fit-content',
-                    maxWidth: isSystemMessage ? '90%' : '70%',
-                    minWidth: '100px',
-                    backgroundColor: isSystemMessage
-                        ? 'grey.300'
-                        : isCurrentUser
-                          ? 'primary.light'
-                          : 'background.paper',
-                    color: isSystemMessage
-                        ? 'text.primary'
-                        : isCurrentUser
-                          ? 'primary.contrastText'
-                          : 'text.primary',
-                    borderRadius: isCurrentUser ? '12px 12px 0 12px' : '12px 12px 12px 0',
-                    position: 'relative',
-                    opacity: message.deletedAt ? 0.7 : 1,
-                }}
-            >
-                {!isSystemMessage && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                        {message.sender?.avatarUrl && (
-                            <Avatar
-                                src={message.sender.avatarUrl}
-                                alt={senderDisplayName}
-                                sx={{
-                                    width: 24,
-                                    height: 24,
-                                    mr: 1,
-                                }}
-                            />
-                        )}
+            <Box sx={{ order: isCurrentUser ? 2 : 1, display: 'flex' }}>
+                {!isCurrentUser && !isSystemMessage && (
+                    <Avatar
+                        src={message.sender?.avatarUrl ?? undefined}
+                        alt={message.sender?.username ?? 'U'}
+                        sx={{ width: 40, height: 40, mr: 1 }}
+                    />
+                )}
+                <Paper
+                    elevation={isCurrentUser ? 3 : 1}
+                    sx={{
+                        p: 1.5,
+                        width: 'fit-content',
+                        maxWidth: '70%',
+                        bgcolor: isCurrentUser ? 'primary.main' : 'background.paper',
+                        color: isCurrentUser ? 'primary.contrastText' : 'text.primary',
+                        borderRadius: isCurrentUser ? '12px 12px 0 12px' : '12px 12px 12px 0',
+                        position: 'relative',
+                        opacity: deleteAction ? 0.7 : 1,
+                    }}
+                >
+                    {!isCurrentUser && !isSystemMessage && (
                         <Typography
                             variant="caption"
                             sx={{
                                 fontWeight: 'bold',
                                 color: isCurrentUser ? 'primary.contrastText' : 'text.secondary',
-                                opacity: 0.8,
                             }}
                         >
-                            {senderDisplayName}
-                            {message.sender?.role === 'ADMIN' && !isCurrentUser && (
-                                <Typography
-                                    component="span"
-                                    sx={{ ml: 0.5, fontSize: '0.7rem', fontStyle: 'italic' }}
-                                >
-                                    (админ)
-                                </Typography>
-                            )}
+                            {message.sender.username}
                         </Typography>
-
-                        {!(message.sender?.role === 'ADMIN' && !isCurrentUser) && (
-                            <Box sx={{ flexGrow: 1 }} />
-                        )}
-
-                        {canModifyMessage() && (
-                            <IconButton
-                                size="small"
-                                sx={{
-                                    p: 0.2,
-                                    color: isCurrentUser ? 'inherit' : 'text.secondary',
-                                }}
-                                onClick={handleMenuOpen}
-                                aria-label="actions"
-                                aria-controls={menuAnchorEl ? 'message-actions-menu' : undefined}
-                                aria-haspopup="true"
-                                aria-expanded={menuAnchorEl ? 'true' : undefined}
-                            >
-                                <MoreVertIcon fontSize="inherit" />
-                            </IconButton>
-                        )}
-                    </Box>
-                )}
-
-                {renderMessageContent()}
-
-                <Box
-                    sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        mt: 0.5,
-                        gap: 1,
-                    }}
-                >
-                    <Typography
-                        variant="caption"
+                    )}
+                    {renderMessageContent()}
+                    <Box
                         sx={{
-                            color: isCurrentUser ? 'primary.contrastText' : 'text.secondary',
-                            opacity: 0.7,
-                            mr: 1,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            mt: 0.5,
+                            gap: 1,
                         }}
                     >
-                        {message.isEdited && !message.deletedAt && !isSystemMessage && (
-                            <Typography component="span" sx={{ fontStyle: 'italic', mr: 0.5 }}>
-                                (изм.)
-                            </Typography>
-                        )}
-                        {formatMessageTime(message.createdAt)}
-                    </Typography>
+                        {renderTimestampAndStatus()}
+                    </Box>
 
-                    {renderMessageStatus()}
-                </Box>
-
-                {canModifyMessage() && (
-                    <Menu
-                        id="message-actions-menu"
-                        anchorEl={menuAnchorEl}
-                        open={Boolean(menuAnchorEl)}
-                        onClose={handleMenuClose}
-                        MenuListProps={{
-                            'aria-labelledby': 'actions-button',
-                        }}
-                    >
-                        <MenuItem onClick={handleEdit} disabled={!canModifyMessage()}>
-                            Редактировать
-                        </MenuItem>
-                        <MenuItem
-                            onClick={handleDelete}
-                            disabled={!canModifyMessage()}
-                            sx={{ color: 'error.main' }}
+                    {canModifyMessage() && (
+                        <Menu
+                            anchorEl={menuAnchorEl}
+                            open={Boolean(menuAnchorEl)}
+                            onClose={handleMenuClose}
+                            slotProps={{
+                                paper: {
+                                    style: {
+                                        width: '140px',
+                                    },
+                                },
+                            }}
                         >
-                            Удалить
-                        </MenuItem>
-                    </Menu>
+                            <MenuItem onClick={handleEdit}>Изменить</MenuItem>
+                            <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+                                Удалить
+                            </MenuItem>
+                        </Menu>
+                    )}
+                </Paper>
+                {canModifyMessage() && (
+                    <IconButton
+                        size="small"
+                        onClick={handleMenuOpen}
+                        sx={{
+                            order: isCurrentUser ? 1 : 2,
+                            alignSelf: 'flex-start',
+                            visibility: menuAnchorEl ? 'visible' : 'hidden',
+                            '@media (hover: hover)': {
+                                '.MuiBox-root:hover &': {
+                                    visibility: 'visible',
+                                },
+                            },
+                        }}
+                    >
+                        <MoreVertIcon fontSize="small" />
+                    </IconButton>
                 )}
-            </Paper>
+            </Box>
         </Box>
     );
-}
+};
+
+export const ChatListItem = memo(ChatListItemComponent);

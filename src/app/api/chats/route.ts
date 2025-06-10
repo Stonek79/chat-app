@@ -49,6 +49,21 @@ export async function GET(req: NextRequest) {
                 include: {
                     sender: true,
                     readReceipts: true,
+                    actions: true,
+                },
+            },
+            _count: {
+                select: {
+                    messages: {
+                        where: {
+                            senderId: { not: currentUser.id },
+                            readReceipts: {
+                                none: {
+                                    userId: currentUser.id,
+                                },
+                            },
+                        },
+                    },
                 },
             },
         };
@@ -63,7 +78,7 @@ export async function GET(req: NextRequest) {
             rawChatsFromDb = await prisma.chat.findMany({
                 where: {
                     participants: {
-                        some: { userId: currentUser.userId },
+                        some: { userId: currentUser.id },
                     },
                 },
                 include: commonChatIncludes,
@@ -75,7 +90,7 @@ export async function GET(req: NextRequest) {
         }
 
         const clientChats: ClientChat[] = rawChatsFromDb
-            .map(chatDb => mapPrismaChatToClientChat(chatDb, currentUser.userId))
+            .map(chatDb => mapPrismaChatToClientChat(chatDb, currentUser.id))
             .filter(Boolean) as ClientChat[];
 
         const uniqueClientChatsMap = new Map<string, ClientChat>();

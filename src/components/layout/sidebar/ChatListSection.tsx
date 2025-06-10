@@ -10,6 +10,23 @@ import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import Box from '@mui/material/Box';
+import { ListItemAvatar, Badge } from '@mui/material';
+
+// TODO: Заменить на реальный тип, когда он будет доступен с бекенда
+// interface EnrichedClientChat extends ClientChat {
+//     lastMessage?: {
+//         text: string;
+//         timestamp: string; // ISO-строка
+//     };
+//     unreadCount?: number;
+// }
+
+// Вспомогательная функция для форматирования времени
+const formatTimestamp = (timestamp: string | undefined | Date) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+};
 
 interface ChatListSectionProps {
     title: string;
@@ -18,8 +35,6 @@ interface ChatListSectionProps {
     onChatSelect: (chatId: string) => void;
     onAddChat: () => void;
     addChatButtonText: string;
-    isDirectMessages?: boolean;
-    listSx?: object;
 }
 
 export function ChatListSection({
@@ -29,81 +44,91 @@ export function ChatListSection({
     onChatSelect,
     onAddChat,
     addChatButtonText,
-    isDirectMessages = false,
-    listSx = {},
 }: ChatListSectionProps) {
     return (
         <List
             sx={{
-                justifyContent: 'space-between',
-                height: '50%',
+                height: 'calc(50% - 40px)', // Оставляем место для кнопки
                 overflowY: 'auto',
                 p: 1,
-                ...listSx,
             }}
             subheader={
-                <ListSubheader sx={{ bgcolor: 'transparent', my: 0.5 }}>
+                <ListSubheader sx={{ bgcolor: 'background.paper', lineHeight: '30px' }}>
                     {title}
                 </ListSubheader>
             }
         >
-            <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
-                {chats.map(chat => (
+            {chats.length > 0 ? (
+                chats.map(chat => (
                     <ListItemButton
                         key={chat.id}
                         selected={chat.id === selectedChatId}
                         onClick={() => onChatSelect(chat.id)}
-                        sx={{ borderRadius: 1, mb: 0.5 }}
+                        sx={{ borderRadius: 2, mb: 1 }}
+                        alignItems="flex-start"
                     >
-                        {isDirectMessages && (
-                            <Avatar
-                                sx={{ mr: 1.5, width: 32, height: 32, fontSize: '0.875rem' }}
-                                src={chat.avatarUrl || undefined}
-                            >
-                                {chat.avatarUrl
-                                    ? null
-                                    : chat.name
-                                      ? chat.name.charAt(0).toUpperCase()
-                                      : 'Ч'}
+                        <ListItemAvatar>
+                            <Avatar src={chat.avatarUrl || undefined}>
+                                {chat.name ? chat.name.charAt(0).toUpperCase() : 'Ч'}
                             </Avatar>
-                        )}
+                        </ListItemAvatar>
                         <ListItemText
-                            primary={
-                                isDirectMessages
-                                    ? chat.name || 'Безымянный чат'
-                                    : `# ${chat.name || 'Безымянный канал'}`
-                            }
-                            slotProps={{
-                                primary: {
-                                    fontWeight: chat.id === selectedChatId ? 'bold' : 'normal',
-                                },
+                            primary={chat.name || 'Безымянный чат'}
+                            secondary={chat.lastMessage?.content || 'Нет сообщений'}
+                            primaryTypographyProps={{
+                                noWrap: true,
+                                sx: { fontWeight: 500 },
                             }}
+                            secondaryTypographyProps={{
+                                noWrap: true,
+                                sx: { color: 'text.secondary' },
+                            }}
+                            sx={{ mr: 1 }}
                         />
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'flex-end',
+                                ml: 'auto',
+                                pl: 1,
+                            }}
+                        >
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                                {formatTimestamp(chat?.lastMessage?.createdAt)}
+                            </Typography>
+                            {chat.unreadCount && chat.unreadCount > 0 ? (
+                                <Badge
+                                    badgeContent={chat.unreadCount}
+                                    color="primary"
+                                    sx={{ mt: 0.5 }}
+                                />
+                            ) : (
+                                <Box sx={{ height: 20 }} /> // Заглушка для выравнивания
+                            )}
+                        </Box>
                     </ListItemButton>
-                ))}
-            </Box>
-            {chats.length === 0 && (
+                ))
+            ) : (
                 <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ p: 1, textAlign: 'center' }}
+                    sx={{ p: 2, textAlign: 'center' }}
                 >
-                    {isDirectMessages ? 'Нет личных сообщений.' : 'Нет доступных каналов.'}
+                    Список чатов пуст
                 </Typography>
             )}
+
             <Button
                 variant="text"
                 startIcon={<AddCircleOutlineIcon />}
+                onClick={onAddChat}
                 sx={{
-                    mt: 1,
                     justifyContent: 'flex-start',
                     width: '100%',
                     textTransform: 'none',
-                    alignSelf: 'flex-end',
-                    position: 'absolute',
-                    bottom: 0,
+                    p: 1.5,
                 }}
-                onClick={onAddChat}
             >
                 {addChatButtonText}
             </Button>

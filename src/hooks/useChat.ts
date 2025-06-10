@@ -12,6 +12,7 @@ import {
     SOCKET_EVENT_DISCONNECT,
     CLIENT_EVENT_MARK_AS_READ,
     SERVER_EVENT_MESSAGES_READ,
+    SERVER_EVENT_MESSAGE_DELETED,
 } from '@/constants';
 
 import type {
@@ -25,6 +26,7 @@ import type {
     ClientChat,
     ClientChatParticipant,
     MessageReadReceipt,
+    ClientMessageAction,
 } from '@/types';
 import { useAuth } from './useAuth';
 
@@ -33,10 +35,11 @@ export interface UseChatReturn {
     participants: ClientChatParticipant[];
     sendMessage: (content: string, contentType?: MessageContentType, mediaUrl?: string) => void;
     isConnected: boolean;
-    chatName: string | null;
+    chatDetails: ClientChat | null;
     isLoadingChatDetails: boolean;
     initialMessagesLoaded: boolean;
     markMessagesAsRead: (lastReadMessageId: string) => void;
+    deleteMessage: (messageId: string) => Promise<void>;
 }
 
 const normalizeDbMessage = (dbMessage: Message): SocketMessagePayload => {
@@ -55,10 +58,9 @@ const normalizeDbMessage = (dbMessage: Message): SocketMessagePayload => {
         content: dbMessage.content,
         createdAt: dbMessage.createdAt,
         updatedAt: dbMessage.updatedAt,
-        contentType: dbMessage.contentType as MessageContentType,
-        mediaUrl: dbMessage.mediaUrl,
+        contentType: dbMessage.contentType,
         readReceipts: dbMessage.readReceipts || [],
-        deletedAt: dbMessage.deletedAt,
+        actions: dbMessage.actions || [],
     };
 };
 
@@ -67,7 +69,7 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
     const [messages, setMessages] = useState<SocketMessagePayload[]>([]);
     const [participants, setParticipants] = useState<ClientChatParticipant[]>([]);
     const [isConnected, setIsConnected] = useState<boolean>(false);
-    const [chatName, setChatName] = useState<string | null>(null);
+    const [chatDetails, setChatDetails] = useState<ClientChat | null>(null);
     const [isLoadingChatDetails, setIsLoadingChatDetails] = useState<boolean>(false);
     const [initialMessagesLoaded, setInitialMessagesLoaded] = useState<boolean>(false);
 
@@ -118,30 +120,30 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
         if (chatId && currentSocket) {
             setIsLoadingChatDetails(true);
             setInitialMessagesLoaded(false);
-            setChatName(null);
+            setChatDetails(null);
             setMessages([]);
             setParticipants([]);
 
             fetchChat(chatId)
-                .then(chatDetails => {
-                    if (chatDetails) {
-                        setChatName(chatDetails.name ?? `Чат ${chatId}`);
-                        if (chatDetails.messages && Array.isArray(chatDetails.messages)) {
-                            const normalizedMessages = chatDetails.messages.map(normalizeDbMessage);
+                .then(details => {
+                    if (details) {
+                        setChatDetails(details);
+                        if (details.messages && Array.isArray(details.messages)) {
+                            const normalizedMessages = details.messages.map(normalizeDbMessage);
                             setMessages(normalizedMessages);
                         } else {
                             setMessages([]);
                         }
+                        if (details.members) {
+                            setParticipants(details.members);
+                        }
                     } else {
                         setMessages([]);
-                    }
-                    if (chatDetails?.members) {
-                        setParticipants(chatDetails.members);
                     }
                 })
                 .catch(error => {
                     console.error('[useChat] Error fetching chat details:', error);
-                    setChatName('Ошибка загрузки чата');
+                    setChatDetails(null);
                     setMessages([]);
                 })
                 .finally(() => {
@@ -167,8 +169,8 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
                         id: payload.userId,
                         username: payload.username,
                         email: payload.email,
-                        role: payload.role as any,
-                        avatarUrl: undefined,
+                        role: payload.role,
+                        avatarUrl: payload.avatarUrl,
                     };
                     setParticipants(prev =>
                         prev.find(p => p.id === newParticipant.id)
@@ -189,7 +191,7 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
                 const currentUserIsMember = chatData.members.some(member => member.id === user.id);
                 if (currentUserIsMember) {
                     if (chatData.id === chatId) {
-                        setChatName(chatData.name ?? `Чат ${chatData.id}`);
+                        setChatDetails(chatData);
                         if (chatData.messages && Array.isArray(chatData.messages)) {
                             const normalizedMessages = chatData.messages.map(normalizeDbMessage);
                             setMessages(normalizedMessages);
@@ -244,11 +246,37 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
                 }
             };
 
+            const handleMessageDeleted = (payload: {
+                chatId: string;
+                messageId: string;
+                action: ClientMessageAction;
+            }) => {
+                if (payload.chatId === chatId) {
+                    setMessages(prevMessages =>
+                        prevMessages.map(msg => {
+                            if (msg.id === payload.messageId) {
+                                const actionExists = msg.actions.some(
+                                    act => act.id === payload.action.id
+                                );
+                                return {
+                                    ...msg,
+                                    actions: actionExists
+                                        ? msg.actions
+                                        : [...msg.actions, payload.action],
+                                };
+                            }
+                            return msg;
+                        })
+                    );
+                }
+            };
+
             currentSocket.on(SERVER_EVENT_RECEIVE_MESSAGE, handleReceiveMessage);
             currentSocket.on(SERVER_EVENT_USER_JOINED, handleUserJoined);
             currentSocket.on(SERVER_EVENT_USER_LEFT, handleUserLeft);
             currentSocket.on(SERVER_EVENT_CHAT_CREATED, handleChatCreated);
             currentSocket.on(SERVER_EVENT_MESSAGES_READ, handleMessagesRead);
+            currentSocket.on(SERVER_EVENT_MESSAGE_DELETED, handleMessageDeleted);
 
             return () => {
                 if (currentSocket.connected) {
@@ -259,9 +287,10 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
                 currentSocket.off(SERVER_EVENT_USER_LEFT, handleUserLeft);
                 currentSocket.off(SERVER_EVENT_CHAT_CREATED, handleChatCreated);
                 currentSocket.off(SERVER_EVENT_MESSAGES_READ, handleMessagesRead);
+                currentSocket.off(SERVER_EVENT_MESSAGE_DELETED, handleMessageDeleted);
             };
         } else if (!chatId) {
-            setChatName(null);
+            setChatDetails(null);
             setMessages([]);
             setParticipants([]);
             setInitialMessagesLoaded(false);
@@ -271,12 +300,11 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
     const sendMessage = useCallback(
         (content: string, contentType: MessageContentType = 'TEXT', mediaUrl?: string) => {
             const currentSocket = socketRef.current;
-            if (chatId && user && currentSocket?.connected) {
+            if (currentSocket && user && chatId) {
                 const payload: ClientSendMessagePayload = {
                     chatId,
                     content,
                     contentType,
-                    mediaUrl,
                 };
                 currentSocket.emit(CLIENT_EVENT_SEND_MESSAGE, payload, ack => {
                     if (ack && typeof ack === 'object') {
@@ -311,8 +339,30 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
                 );
             }
         },
-        [chatId, user]
+        [user, chatId]
     );
+
+    const deleteMessage = useCallback(async (messageId: string) => {
+        try {
+            const response = await fetch(`/api/messages/${messageId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Failed to delete message:', errorData.error);
+                // Тут можно показать уведомление пользователю
+                throw new Error(errorData.error || 'Failed to delete message');
+            }
+
+            // Напрямую обновлять стейт не нужно, так как мы ждем событие от сокета.
+            // Это гарантирует, что все клиенты получат обновление одновременно.
+            console.log(`[useChat] Message ${messageId} deletion request sent.`);
+        } catch (error) {
+            console.error('Error sending deletion request:', error);
+            // Тут тоже можно показать уведомление
+        }
+    }, []);
 
     const markMessagesAsRead = useCallback(
         (lastReadMessageId: string) => {
@@ -339,9 +389,10 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
         participants,
         sendMessage,
         isConnected,
-        chatName,
+        chatDetails,
         isLoadingChatDetails,
         initialMessagesLoaded,
         markMessagesAsRead,
+        deleteMessage,
     };
 };

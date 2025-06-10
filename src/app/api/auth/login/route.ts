@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { handleApiError, ApiError, prisma } from '@/lib';
 import { AUTH_TOKEN_COOKIE_NAME } from '@/constants';
-
-const loginSchema = z.object({
-    email: z.string().email('Некорректный email'),
-    password: z.string().min(1, 'Пароль не может быть пустым'), // Минимум 1, т.к. проверка длины была при регистрации
-});
+import { loginSchema } from '@/schemas';
 
 /**
  * @swagger

@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 // import jwt from 'jsonwebtoken'; // Пока не используется для JWT, только для токена верификации
 import { randomBytes } from 'crypto';
 import { handleApiError, ApiError, prisma } from '@/lib';
-
-// Схема валидации для регистрации
-const registerSchema = z.object({
-    username: z.string().min(3, 'Имя пользователя должно содержать минимум 3 символа').max(30),
-    email: z.string().email('Некорректный email'),
-    password: z.string().min(6, 'Пароль должен содержать минимум 6 символов'),
-});
+import { registerSchema } from '@/schemas';
 
 /**
  * @swagger
@@ -132,18 +125,8 @@ export async function POST(req: NextRequest) {
         );
     } catch (error) {
         // Передаем ошибку в наш кастомный обработчик
-        if (error instanceof z.ZodError) {
-            // ZodError обрабатывается внутри handleApiError если мы прокидываем его как есть,
-            // но если мы создали ApiError на его основе, то он пойдет по ветке error instanceof Error
-            // Чтобы ZodError обработался специфично, можно сделать так:
-            return handleApiError(error);
-        }
         if (error instanceof ApiError) {
-            return handleApiError(error, {
-                status: error.status,
-                message: error.message,
-                errors: error.errors,
-            });
+            return handleApiError(error);
         }
         // Для всех остальных непредвиденных ошибок
         return handleApiError(error, { message: 'Внутренняя ошибка сервера при регистрации' });

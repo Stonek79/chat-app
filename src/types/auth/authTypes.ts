@@ -1,31 +1,36 @@
-import { UserRole } from '../user';
+import type { z } from 'zod';
+import type { UserRole } from '@prisma/client';
 import type { JWTPayload as JoseJWTPayload } from 'jose';
+import type {
+    loginSchema,
+    registerSchema,
+    updateUserProfileSchema,
+    userResponseSchema,
+} from '@/schemas';
 
-// Тип для данных пользователя, которые хранятся на клиенте
-export interface ClientUser {
-    id: string;
-    username: string;
-    email: string;
-    role: UserRole;
-    avatarUrl: string;
-}
+/**
+ * @description Тип для публичных данных пользователя, которые безопасно отправлять на клиент.
+ * Выводится из `userResponseSchema`.
+ */
+export type ClientUser = z.infer<typeof userResponseSchema>;
 
-// Типы для форм
-export interface LoginCredentials {
-    email: string;
-    password?: string;
-}
+/**
+ * @description Тип для данных формы входа.
+ * Выводится из `loginSchema`.
+ */
+export type LoginCredentials = z.infer<typeof loginSchema>;
 
-export interface RegisterCredentials {
-    username: string;
-    email: string;
-    password?: string;
-}
+/**
+ * @description Тип для данных формы регистрации.
+ * Выводится из `registerSchema`.
+ */
+export type RegisterCredentials = z.infer<typeof registerSchema>;
 
-export interface UpdateUserPayload {
-    username?: string;
-    // email?: string; // Для будущего расширения
-}
+/**
+ * @description Тип для данных формы обновления профиля.
+ * Выводится из `updateUserProfileSchema`.
+ */
+export type UpdateUserProfilePayload = z.infer<typeof updateUserProfileSchema>;
 
 export interface AuthContextType {
     user: ClientUser | null;
@@ -36,30 +41,12 @@ export interface AuthContextType {
     logout: () => Promise<void>;
     register: (credentials: RegisterCredentials) => Promise<void>;
     checkAuthStatus: () => Promise<void>;
-    updateUser?: (payload: UpdateUserPayload) => Promise<ClientUser | null>;
+    updateUser?: (payload: UpdateUserProfilePayload) => Promise<ClientUser | null>;
     clearAuthError: () => void;
 }
 
-
-export interface AuthenticatedUser {
-    userId: string;
-    email: string;
-    username: string;
-    role: UserRole;
-}
-
-export interface DecodedTokenInternal {
-    userId: string;
-    email: string;
-    username: string;
-    role: UserRole;
-    iat: number;
-    exp: number;
-}
-
 /**
- * Расширенный интерфейс для JWTPayload из jose, включающий специфичные для приложения поля.
- * Аналогично UserJWTPayload из middleware.ts
+ * @description Полезная нагрузка JWT, специфичная для нашего приложения.
  */
 export interface AppJWTPayload extends JoseJWTPayload {
     userId: string;

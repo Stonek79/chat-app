@@ -49,16 +49,12 @@ interface UserJWTPayload extends JWTPayload {
 async function verifyAndDecodeToken(token: string): Promise<UserJWTPayload | null> {
     const JWT_SECRET_KEY = process.env.JWT_SECRET;
 
-    console.log('JWT_SECRET_KEY', JWT_SECRET_KEY);
-
     if (!JWT_SECRET_KEY) {
         console.error('JWT_SECRET is not set in environment variables for middleware.');
         return null;
     }
     try {
         const secret = new TextEncoder().encode(JWT_SECRET_KEY);
-
-        console.log('SECRET', secret);
 
         const { payload } = await jwtVerify(token, secret);
         return payload as UserJWTPayload;

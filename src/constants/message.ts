@@ -1,1 +1,1 @@
-export { MessageContentType as MessageContentTypeEnum } from '@prisma/client'
+export { MessageContentType as MessageContentTypeEnum, ActionType as MessageActionTypeEnum } from '@prisma/client'

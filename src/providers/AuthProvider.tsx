@@ -1,6 +1,8 @@
 'use client';
+
 import { useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { AuthContext } from '@/contexts';
 import { ClientUser, LoginCredentials, RegisterCredentials, UpdateUserPayload } from '@/types';
 import {
@@ -84,13 +86,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 const errorMessage =
                     data.message || 'Ошибка входа. Пожалуйста, проверьте свои данные.';
                 setAuthError(errorMessage);
+                toast.error(errorMessage);
                 return null;
             }
         } catch (error: any) {
             console.error('Сетевая ошибка или ошибка обработки при входе:', error);
+            const errorMessage = error.message || 'Произошла неизвестная ошибка при входе.';
             if (!authError) {
-                setAuthError(error.message || 'Произошла неизвестная ошибка при входе.');
+                setAuthError(errorMessage);
             }
+            toast.error(errorMessage);
             setUser(null);
             return null;
         } finally {
@@ -129,13 +134,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             } else {
                 const errorMessage = data.message || 'Ошибка регистрации.';
                 setAuthError(errorMessage);
+                toast.error(errorMessage);
                 throw new Error(errorMessage);
             }
         } catch (error: any) {
             console.error('Сетевая ошибка или ошибка обработки при регистрации:', error);
+            const errorMessage = error.message || 'Произошла неизвестная ошибка при регистрации.';
             if (!authError) {
-                setAuthError(error.message || 'Произошла неизвестная ошибка при регистрации.');
+                setAuthError(errorMessage);
             }
+            toast.error(errorMessage);
             throw error;
         } finally {
             setIsLoading(false);
@@ -161,10 +169,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             const data = await response.json();
             if (response.ok && data.user) {
                 setUser(data.user);
+                toast.success('Профиль успешно обновлен!');
                 return data.user as ClientUser;
             } else {
                 const errorMessage = data.message || 'Ошибка обновления пользователя.';
                 setAuthError(errorMessage);
+                toast.error(errorMessage);
                 return null;
             }
         } catch (error: any) {
@@ -172,9 +182,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 'Сетевая ошибка или ошибка обработки при обновлении пользователя:',
                 error
             );
+            const errorMessage = error.message || 'Произошла неизвестная ошибка при обновлении.';
             if (!authError) {
-                setAuthError(error.message || 'Произошла неизвестная ошибка при обновлении.');
+                setAuthError(errorMessage);
             }
+            toast.error(errorMessage);
             return null;
         } finally {
             setIsLoading(false);

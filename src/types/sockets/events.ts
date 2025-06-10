@@ -1,6 +1,11 @@
-import type { BasicUser, UserRole } from '../user';
-import type { MessageContentType, MessageReadReceipt } from '../message';
-import type { ClientChat } from '../chat';
+import type { UserRole } from '../user';
+import type { ClientMessageAction } from '../message';
+import type {
+    ClientChat,
+    SocketMessagePayload,
+    ClientSendMessagePayload,
+    ChatParticipantRole,
+} from '../chat';
 import type { Socket as SocketIOClientDefault } from 'socket.io-client';
 import {
     CLIENT_EVENT_JOIN_CHAT,
@@ -12,29 +17,10 @@ import {
     SERVER_EVENT_USER_LEFT,
     SERVER_EVENT_CHAT_CREATED,
     SERVER_EVENT_MESSAGES_READ,
+    SERVER_EVENT_MESSAGE_DELETED,
 } from '@/constants';
 
 export { SocketIOClientDefault };
-
-/**
- * Полезная нагрузка для события получения нового сообщения от сокет-сервера.
- * Этот тип должен быть максимально совместим с тем, что ожидает ChatListItem (тип Message из Prisma).
- */
-export interface SocketMessagePayload {
-    id?: string; // ID сообщения из БД
-    chatId: string; // ID чата
-    sender: BasicUser; // Отправитель (облегченная версия)
-    content: string; // Текстовое содержимое
-    createdAt: Date; // Время создания (было timestamp)
-    updatedAt?: Date | null; // Время обновления
-    contentType: MessageContentType; // Возвращаем исходный тип
-    mediaUrl?: string | null; // URL для медиа-контента (если есть)
-    readReceipts: MessageReadReceipt[]; // Теперь содержит MessageReadReceipt с полем id
-    deletedAt?: Date | null; // Если сообщение удалено
-    // Дополнительные поля, если они есть в вашем Prisma.Message и нужны клиенту:
-    //parentId?: string | null;       // Для ответов на сообщения
-    //metadata?: Record<string, any>; // Какие-либо метаданные
-}
 
 /**
  * Полезная нагрузка для событий присутствия пользователя (подключился/отключился).
@@ -43,18 +29,9 @@ export interface SocketUserPresencePayload {
     chatId: string;
     userId: string;
     email: string;
-    role: UserRole;
+    role: ChatParticipantRole;
     username: string;
-}
-
-// Можно также определить типы для данных, которые клиент отправляет на сервер, если они отличаются
-
-export interface ClientSendMessagePayload {
-    chatId: string;
-    content: string;
-    contentType?: MessageContentType;
-    mediaUrl?: string;
-    // parentId?: string;   // Для ответа
+    avatarUrl: string;
 }
 
 // ==============================================================================
@@ -107,9 +84,14 @@ export interface ServerToClientEvents {
     [SERVER_EVENT_CHAT_CREATED]: (chat: ClientChat) => void;
     [SERVER_EVENT_MESSAGES_READ]: (payload: {
         chatId: string;
-        userId: string; // Пользователь, который прочитал
-        lastReadMessageId: string; // ID последнего прочитанного им сообщения в этом чате
-        readAt: Date; // Время прочтения
+        userId: string;
+        lastReadMessageId: string;
+        readAt: Date;
+    }) => void;
+    [SERVER_EVENT_MESSAGE_DELETED]: (payload: {
+        chatId: string;
+        messageId: string;
+        action: ClientMessageAction;
     }) => void;
     // Пример другого события от сервера:
     // 'server:typing_indicator': (data: { chatId: string; userId: string; isTyping: boolean }) => void;

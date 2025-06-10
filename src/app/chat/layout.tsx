@@ -1,9 +1,10 @@
-import { ErrorBoundary, Sidebar } from '@/components';
+import { ErrorBoundary } from '@/components';
 import { ReactNode, Suspense } from 'react';
 import { LOGIN_PAGE_ROUTE } from '@/constants';
 import { getCurrentUserFromSessionCookie, fetchChatsForLayout } from '@/lib';
 import { redirect } from 'next/navigation';
 import { Box, CircularProgress, Typography } from '@mui/material';
+import { ChatAppLayout } from '@/components';
 
 const ErrorFallback = ({ error }: { error?: Error }) => (
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -19,9 +20,7 @@ export default async function ChatLayout({ children }: { children: ReactNode }) 
         redirect(LOGIN_PAGE_ROUTE);
     }
 
-    const response = await fetchChatsForLayout();
-
-    const chats = await response;
+    const chats = await fetchChatsForLayout();
 
     return (
         <Suspense
@@ -31,7 +30,7 @@ export default async function ChatLayout({ children }: { children: ReactNode }) 
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
-                        height: '100vh',
+                        height: '100%',
                     }}
                 >
                     <CircularProgress />
@@ -39,9 +38,9 @@ export default async function ChatLayout({ children }: { children: ReactNode }) 
             }
         >
             <ErrorBoundary fallback={<ErrorFallback />}>
-                <Sidebar initialUser={currentUser} chats={chats}>
+                <ChatAppLayout currentUser={currentUser} chats={chats}>
                     {children}
-                </Sidebar>
+                </ChatAppLayout>
             </ErrorBoundary>
         </Suspense>
     );
