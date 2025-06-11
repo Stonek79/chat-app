@@ -1,14 +1,16 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { ClientUser, ClientChat } from '@/types';
+import { usePathname,useRouter } from 'next/navigation';
+import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
-import { UserProfilePanel } from './sidebar/UserProfilePanel';
+
+import { CHAT_PAGE_ROUTE } from '@/constants';
+import { AuthenticatedUser, ClientChat,ClientUser } from '@/types';
+
 import { ChatListSection } from './sidebar/ChatListSection';
 import { LogoutButtonSection } from './sidebar/LogoutButtonSection';
-import Box from '@mui/material/Box';
-import { useRouter, usePathname } from 'next/navigation';
-import { CHAT_PAGE_ROUTE } from '@/constants';
+import { UserProfilePanel } from './sidebar/UserProfilePanel';
 
 const getChatIdFromPathname = (currentPathname: string): string | null => {
     // Убедимся, что CHAT_PAGE_ROUTE оканчивается без слеша для корректного разделения
@@ -29,7 +31,7 @@ const getChatIdFromPathname = (currentPathname: string): string | null => {
 };
 
 interface SidebarProps {
-    initialUser: ClientUser;
+    initialUser: AuthenticatedUser;
     children?: ReactNode;
     chats: ClientChat[];
 }

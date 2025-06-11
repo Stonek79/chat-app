@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { handleApiError, ApiError, prisma } from '@/lib';
-import { type ClientUser, UserRole } from '@/types';
-import { AUTH_TOKEN_COOKIE_NAME } from '@/constants';
 
-interface DecodedToken {
-    userId: string;
-    email: string;
-    username: string;
-    role: string;
-    // iat: number; // Issued at
-    // exp: number; // Expires at
-}
+import { AUTH_TOKEN_COOKIE_NAME } from '@/constants';
+import { ApiError, handleApiError, prisma } from '@/lib';
+import { jwtPayloadSchema, userResponseSchema } from '@/schemas';
+import { type ClientUser } from '@/types';
 
 /**
  * @swagger
@@ -52,59 +45,63 @@ interface DecodedToken {
  */
 export async function GET(req: NextRequest) {
     try {
-        const tokenCookie = req.cookies.get(AUTH_TOKEN_COOKIE_NAME);
+        const token = req.cookies.get(AUTH_TOKEN_COOKIE_NAME)?.value;
 
-        if (!tokenCookie) {
-            throw new ApiError('Пользователь не аутентифицирован', 401);
+        if (!token) {
+            throw new ApiError('Токен аутентификации не предоставлен', 401);
         }
 
-        const token = tokenCookie.value;
         const jwtSecret = process.env.JWT_SECRET;
-
         if (!jwtSecret) {
-            console.error('JWT_SECRET не определен в .env для /api/auth/me');
+            console.error('JWT_SECRET не определен в .env');
             throw new ApiError('Ошибка конфигурации сервера (JWT)', 500);
         }
 
-        let decoded;
+        let decoded: unknown;
         try {
-            decoded = jwt.verify(token, jwtSecret) as DecodedToken;
-        } catch (jwtError) {
-            // Ошибка верификации токена (невалидный, истекший и т.д.)
-            console.warn('Ошибка верификации JWT для /api/auth/me:', jwtError);
-            // Удаляем невалидный cookie
+            decoded = jwt.verify(token, jwtSecret);
+        } catch (error) {
             const errResponse = NextResponse.json(
-                { message: 'Невалидный или истекший токен' },
+                { message: 'Невалидный или истекший токен', error: 'InvalidTokenError' },
                 { status: 401 }
             );
-            errResponse.cookies.set(AUTH_TOKEN_COOKIE_NAME, '', {
-                httpOnly: true,
-                path: '/',
-                maxAge: 0,
-            });
+            errResponse.cookies.set(AUTH_TOKEN_COOKIE_NAME, '', { maxAge: 0 });
             return errResponse;
         }
 
-        const userRole = decoded.role as UserRole;
+        const validationResult = jwtPayloadSchema.safeParse(decoded);
+
+        if (!validationResult.success) {
+            throw new ApiError('Некорректный формат токена', 401);
+        }
+
+        const { userId } = validationResult.data;
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+        });
+
+        if (!user) {
+            throw new ApiError('Пользователь из токена не найден в базе данных', 404);
+        }
 
         const clientUser: ClientUser = {
-            id: decoded.userId,
-            username: decoded.username,
-            email: decoded.email,
-            role: userRole,
-            avatarUrl: '',
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            avatarUrl: user.avatarUrl,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
         };
 
-        return NextResponse.json({ user: clientUser }, { status: 200 });
+        const parsedUser = userResponseSchema.parse(clientUser);
+
+        return NextResponse.json({ user: parsedUser }, { status: 200 });
     } catch (error) {
         if (error instanceof ApiError) {
-            return handleApiError(error, {
-                status: error.status,
-                message: error.message,
-                errors: error.errors,
-            });
+            return handleApiError(error);
         }
-        // Важно не прокидывать сообщение об ошибке, если это не ApiError, чтобы не раскрыть детали
-        return handleApiError(error, { message: 'Ошибка получения данных пользователя' });
+        return handleApiError(error, { message: 'Ошибка при получении данных пользователя' });
     }
 }

@@ -14,7 +14,6 @@
         "resolveJsonModule": true,
         "isolatedModules": false,
         "sourceMap": true,
-        "baseUrl": ".",
         "paths": {
             "@/*": ["../src/*"],
             "#/types": ["../src/types/index.ts"],
@@ -27,6 +26,5 @@
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true
     },
-    "include": ["src/**/*.ts"],
     "exclude": ["node_modules", "**/*.spec.ts", "dist"]
 }

@@ -1,19 +1,20 @@
 'use client';
 
-import { useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
+
+import {
+    API_AUTH_LOGIN_ROUTE,
+    API_AUTH_LOGOUT_ROUTE,
+    API_AUTH_ME_ROUTE,
+    API_AUTH_REGISTER_ROUTE,
+    API_AUTH_USER_ROUTE,
+    HOME_PAGE_ROUTE,
+    LOGIN_PAGE_ROUTE,
+} from '@/constants';
 import { AuthContext } from '@/contexts';
 import { ClientUser, LoginCredentials, RegisterCredentials, UpdateUserPayload } from '@/types';
-import {
-    API_AUTH_ME_ROUTE,
-    API_AUTH_LOGOUT_ROUTE,
-    API_AUTH_LOGIN_ROUTE,
-    API_AUTH_REGISTER_ROUTE,
-    LOGIN_PAGE_ROUTE,
-    HOME_PAGE_ROUTE,
-    API_AUTH_USER_ROUTE,
-} from '@/constants';
 
 interface AuthProviderProps {
     children: ReactNode;
@@ -39,20 +40,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         clearAuthError();
         try {
             const response = await fetch(API_AUTH_ME_ROUTE, fetchOptions);
+            const data = await response.json();
 
-            if (response.ok) {
-                const data = await response.json();
-                if (data.user) {
-                    setUser(data.user);
-                } else {
-                    setUser(null);
-                }
+            if (response.ok && data.user) {
+                setUser(data.user);
             } else {
                 setUser(null);
+                if (data.message) {
+                    if (response.status !== 401) {
+                        setAuthError(data.message);
+                        toast.error(data.message);
+                    }
+                }
             }
         } catch (error) {
             console.error('Ошибка проверки статуса аутентификации:', error);
             setUser(null);
+            setAuthError('Не удалось проверить статус аутентификации. Проверьте соединение.');
         } finally {
             setIsLoading(false);
         }
@@ -89,9 +93,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 toast.error(errorMessage);
                 return null;
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Сетевая ошибка или ошибка обработки при входе:', error);
-            const errorMessage = error.message || 'Произошла неизвестная ошибка при входе.';
+            const errorMessage =
+                error instanceof Error ? error.message : 'Произошла неизвестная ошибка при входе.';
             if (!authError) {
                 setAuthError(errorMessage);
             }
@@ -137,9 +142,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 toast.error(errorMessage);
                 throw new Error(errorMessage);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Сетевая ошибка или ошибка обработки при регистрации:', error);
-            const errorMessage = error.message || 'Произошла неизвестная ошибка при регистрации.';
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : 'Произошла неизвестная ошибка при регистрации.';
             if (!authError) {
                 setAuthError(errorMessage);
             }
@@ -177,12 +185,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 toast.error(errorMessage);
                 return null;
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(
                 'Сетевая ошибка или ошибка обработки при обновлении пользователя:',
                 error
             );
-            const errorMessage = error.message || 'Произошла неизвестная ошибка при обновлении.';
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : 'Произошла неизвестная ошибка при обновлении.';
             if (!authError) {
                 setAuthError(errorMessage);
             }

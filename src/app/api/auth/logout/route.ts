@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError } from '@/lib';
+
 import { AUTH_TOKEN_COOKIE_NAME } from '@/constants';
+import { handleApiError } from '@/lib';
 
 /**
  * @swagger

@@ -1,7 +1,8 @@
-import { jwtVerify, type JWTPayload } from 'jose';
 import { parse as parseCookie } from 'cookie';
-import type { AppServerSocket, UserRole } from '#/types';
+import { type JWTPayload, jwtVerify } from 'jose';
+
 import { AUTH_SOCKET_TOKEN_COOKIE_NAME } from '#/constants';
+import type { AppServerSocket, UserRole } from '#/types';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -75,19 +76,9 @@ export const jwtAuthMiddleware = async (socket: AppServerSocket, next: (err?: Er
             `[AuthMiddleware] Пользователь ${socket.data.user!.username} (Role: ${socket.data.user!.role || 'N/A'}) успешно аутентифицирован для Socket.IO.`
         );
         next();
-    } catch (err: any) {
-        console.warn('[AuthMiddleware] Ошибка верификации JWT:', err.message);
-        let errorMessage = 'Ошибка аутентификации.';
-        if (err.code === 'ERR_JWT_EXPIRED') {
-            errorMessage = 'Токен истек.';
-        } else if (
-            err.code === 'ERR_JWS_INVALID' ||
-            err.code === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED'
-        ) {
-            errorMessage = 'Невалидный токен.';
-        } else {
-            console.error('[AuthMiddleware] Неизвестная ошибка JWT:', err);
-        }
-        next(new Error(errorMessage));
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Ошибка аутентификации';
+        console.error(`[Auth Middleware] Ошибка JWT верификации: ${message}`);
+        next(new Error(message));
     }
 };

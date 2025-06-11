@@ -12,16 +12,17 @@
  *    - Публичные маршруты доступны всем.
  * 5. Использует 'jose' для верификации JWT в Edge Runtime.
  */
-import { NextResponse, type NextRequest } from 'next/server';
-import { jwtVerify, type JWTPayload } from 'jose';
+import { type NextRequest,NextResponse } from 'next/server';
+import { type JWTPayload,jwtVerify } from 'jose';
+
 import {
+    ADMIN_ROUTES_PREFIX,
     AUTH_TOKEN_COOKIE_NAME,
     CHAT_PAGE_ROUTE,
+    GUEST_ONLY_ROUTES,
+    IGNORED_API_PREFIXES,
     LOGIN_PAGE_ROUTE,
     PUBLIC_ROUTES,
-    GUEST_ONLY_ROUTES,
-    ADMIN_ROUTES_PREFIX,
-    IGNORED_API_PREFIXES,
 } from '@/constants';
 
 /**

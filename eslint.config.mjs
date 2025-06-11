@@ -1,8 +1,8 @@
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { FlatCompat } from '@eslint/eslintrc';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,36 +13,33 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
     {
-        ignores: ['next', 'node_modules', 'dist', 'public', 'socket-server/node_modules'],
+        ignores: ['.next', 'node_modules', 'dist', 'public', 'prisma/seed.ts', 'memory-bank/'],
     },
-    ...compat.extends('next/core-web-vitals', 'next/typescript'),
-    {
-        plugins: { 'simple-import-sort': simpleImportSort },
+    // Единый конфигурационный блок для Next.js приложения
+    ...compat.extends('next/core-web-vitals', 'next/typescript').map(config => ({
+        ...config,
+        files: ['src/**/*.{ts,tsx}'],
+        plugins: {
+            ...config.plugins,
+            'simple-import-sort': simpleImportSort,
+        },
         rules: {
+            ...config.rules, // Начинаем с базовых правил
+            // ===== Наши кастомные правила (имеют приоритет) =====
             'simple-import-sort/imports': [
                 'error',
                 {
                     groups: [
-                        // Сторонние пакеты. `react` и `next` идут первыми.
                         ['^react', '^next', '^@?\\w'],
-                        // Внутренние абсолютные импорты.
                         ['^@/.*$'],
-                        // Импорты с побочными эффектами.
                         ['^\\u0000'],
-                        // Родительские импорты. `..` идут последними.
                         ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
-                        // Другие относительные импорты. Импорты из той же папки `.` идут последними.
                         ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
-                        // Импорты стилей.
                         ['^.+\\.s?css$'],
                     ],
                 },
             ],
             'simple-import-sort/exports': 'error',
-        },
-    },
-    {
-        rules: {
             'no-restricted-imports': [
                 'error',
                 {
@@ -84,7 +81,6 @@ const eslintConfig = [
                             group: ['@/types/*/*'],
                             message: 'Please use barrel file imports for types: `@/types`',
                         },
-
                         {
                             group: ['@/utils/*'],
                             message: 'Please use barrel file imports for utils: `@/utils`',
@@ -92,11 +88,6 @@ const eslintConfig = [
                     ],
                 },
             ],
-        },
-    },
-    {
-        files: ['src/**/*.{ts,tsx}'],
-        rules: {
             'no-restricted-syntax': [
                 'error',
                 {
@@ -106,13 +97,14 @@ const eslintConfig = [
                 },
             ],
         },
-    },
+    })),
+    // Конфигурация для Socket.IO сервера
     ...compat.extends('plugin:@typescript-eslint/recommended').map(config => ({
         ...config,
-        files: ['socket-server/src/**/*.ts'],
+        files: ['socket-server/**/*.ts'],
     })),
     {
-        files: ['socket-server/src/**/*.ts'],
+        files: ['socket-server/**/*.ts'],
         languageOptions: {
             globals: {
                 ...globals.node,
@@ -132,8 +124,8 @@ const eslintConfig = [
                 },
             ],
             'simple-import-sort/exports': 'error',
-            '@typescript-eslint/no-unused-vars': 'warn',
-            '@typescript-eslint/no-explicit-any': 'warn',
+            '@typescript-eslint/no-unused-vars': 'error',
+            '@typescript-eslint/no-explicit-any': 'error',
         },
     },
 ];

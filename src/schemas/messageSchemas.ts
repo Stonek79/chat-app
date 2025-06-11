@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import { MessageContentType } from '@prisma/client';
+import { z } from 'zod';
 
 /**
  * Схема для enum MessageContentType из Prisma.

@@ -1,8 +1,8 @@
 'use client';
 
-import Link from '@mui/material/Link';
 import NextLink from 'next/link';
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 
 interface AuthRedirectLinkProps {
     text: string;

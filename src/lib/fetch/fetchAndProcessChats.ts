@@ -1,9 +1,10 @@
 'use server'; // Указываем, что этот модуль выполняется на сервере
 
-import { API_CHATS_ROUTE, PUBLIC_APP_API_URL } from '@/constants';
-import { ClientChat } from '@/types';
 import { cookies } from 'next/headers';
+
+import { API_CHATS_ROUTE, PUBLIC_APP_API_URL } from '@/constants';
 import { AUTH_TOKEN_COOKIE_NAME } from '@/constants';
+import { ClientChat } from '@/types';
 
 export async function fetchChatsForLayout(): Promise<ClientChat[]> {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || PUBLIC_APP_API_URL;

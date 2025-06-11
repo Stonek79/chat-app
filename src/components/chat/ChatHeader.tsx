@@ -1,19 +1,20 @@
 'use client';
 
+import { MouseEvent,useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-    AppBar,
-    Toolbar,
-    IconButton,
-    Avatar,
-    Typography,
-    Box,
-    Menu,
-    MenuItem,
-} from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import { useState, MouseEvent } from 'react';
+import {
+    AppBar,
+    Avatar,
+    Box,
+    IconButton,
+    Menu,
+    MenuItem,
+    Toolbar,
+    Typography,
+} from '@mui/material';
+
 import { CHAT_PAGE_ROUTE } from '@/constants';
 
 interface ChatHeaderProps {

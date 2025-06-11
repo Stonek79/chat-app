@@ -1,6 +1,7 @@
-import { z } from 'zod';
-import { UserRoleEnum, validationMessages } from '@/constants';
 import { UserRole } from '@prisma/client';
+import { z } from 'zod';
+
+import { UserRoleEnum, validationMessages } from '@/constants';
 
 // Константы для валидации
 const USERNAME_MIN_LENGTH = 3;
@@ -64,7 +65,7 @@ export const updateUserProfileSchema = z.object({
  * Используется в ответе `GET /api/auth/me` и при логине.
  */
 export const userResponseSchema = z.object({
-    id: z.string().uuid(),
+    id: z.string().cuid(),
     username: z.string(),
     email: z.string().email(),
     role: z.nativeEnum(UserRoleEnum),
@@ -78,3 +79,16 @@ export const userResponseSchema = z.object({
  * Позволяет использовать роли в других Zod-схемах.
  */
 export const userRoleSchema = z.nativeEnum(UserRole);
+
+/**
+ * @description Схема для валидации полезной нагрузки JWT токена.
+ * Гарантирует, что декодированный токен содержит все необходимые поля.
+ */
+export const jwtPayloadSchema = z.object({
+    userId: z.string().cuid(),
+    email: z.string().email(),
+    username: z.string(),
+    role: userRoleSchema,
+    iat: z.number(),
+    exp: z.number(),
+});

@@ -1,14 +1,16 @@
+import { z } from 'zod';
+
+import { clientChatSchema } from '@/schemas';
 import type {
-    ClientChat,
     Chat as PrismaChat,
+    ClientChat,
+    Message as PrismaMessage,
+    MessageAction,
+    MessageReadReceipt,
     PrismaChatParticipant,
     User as PrismaUser,
-    Message as PrismaMessage,
-    MessageReadReceipt,
-    MessageAction,
 } from '@/types';
-import { clientChatSchema } from '@/schemas';
-import { z } from 'zod';
+
 import { mapPrismaMessageToDisplayMessage } from './messageMappers';
 
 /**
@@ -56,7 +58,6 @@ export const mapPrismaChatToClientChat = (
         messages,
         createdAt,
         updatedAt,
-        // @ts-ignore Prisma _count extension
         _count: count,
     } = chatDb;
 

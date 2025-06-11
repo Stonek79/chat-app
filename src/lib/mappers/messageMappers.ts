@@ -1,4 +1,4 @@
-import { Message, BasicUser, DisplayMessage } from '@/types';
+import { BasicUser, DisplayMessage,Message } from '@/types';
 
 /**
  * Расширенный тип для сообщения Prisma, включающий данные отправителя.

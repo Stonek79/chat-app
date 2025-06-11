@@ -1,6 +1,8 @@
-import { z } from 'zod';
 import { ChatParticipantRole, MessageContentType } from '@prisma/client';
+import { z } from 'zod';
+
 import { validationMessages } from '@/constants';
+
 import { userRoleSchema } from './authSchemas';
 
 // Константы для валидации
@@ -33,7 +35,7 @@ export const createPrivateChatSchema = z.object({
  */
 export const createMessageSchema = z.object({
     content: z.string().min(1, { message: 'Сообщение не может быть пустым' }),
-    chatId: z.string().uuid(),
+    chatId: z.string().cuid(),
 });
 
 /**
@@ -41,7 +43,7 @@ export const createMessageSchema = z.object({
  * Включает опциональный временный ID для UI.
  */
 export const sendMessageSocketSchema = createMessageSchema.extend({
-    clientTempId: z.string().uuid().optional(),
+    clientTempId: z.string().uuid(),
     contentType: z.nativeEnum(MessageContentType).optional(),
 });
 
@@ -95,4 +97,14 @@ export const clientChatSchema = z.object({
     updatedAt: z.date(),
     // messages не включаем в общую схему DTO чата, чтобы не перегружать
     // их будем запрашивать отдельно для конкретного чата.
+});
+
+export const sendMessageDtoSchema = z.object({
+    chatId: z.string().cuid('Невалидный ID чата'),
+    content: z.string().min(1, 'Сообщение не может быть пустым'),
+    contentType: z.nativeEnum(MessageContentType).optional(),
+});
+
+export const markAsReadDtoSchema = z.object({
+    // ... existing code ...
 });

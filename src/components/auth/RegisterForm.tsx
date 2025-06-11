@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
-import { useAuth } from '@/hooks';
-import { LOGIN_PAGE_ROUTE } from '@/constants';
+import { FormEvent, useEffect,useState } from 'react';
 import Box from '@mui/material/Box';
-import { UsernameField, EmailField, PasswordField } from './fields';
-import { SubmitButton, AuthErrorAlert, AuthRedirectLink } from './common';
+
+import { LOGIN_PAGE_ROUTE } from '@/constants';
+import { useAuth } from '@/hooks';
+
+import { AuthErrorAlert, AuthRedirectLink,SubmitButton } from './common';
+import { EmailField, PasswordField,UsernameField } from './fields';
 
 // TODO: переписать на серверный компонент, абрать хуки в дочерние компоненты
 export function RegisterForm() {

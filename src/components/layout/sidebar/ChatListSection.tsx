@@ -1,16 +1,17 @@
 'use client';
 
-import { ClientChat } from '@/types';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import { Badge,ListItemAvatar } from '@mui/material';
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import ListSubheader from '@mui/material/ListSubheader';
-import Button from '@mui/material/Button';
-import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import Box from '@mui/material/Box';
-import { ListItemAvatar, Badge } from '@mui/material';
+
+import { ClientChat } from '@/types';
 
 // TODO: Заменить на реальный тип, когда он будет доступен с бекенда
 // interface EnrichedClientChat extends ClientChat {

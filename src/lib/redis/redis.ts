@@ -1,7 +1,7 @@
 'use server';
 
-import IORedis from 'ioredis';
 import type { RedisOptions } from 'ioredis';
+import IORedis from 'ioredis';
 
 const redisUrl = process.env.REDIS_URL;
 

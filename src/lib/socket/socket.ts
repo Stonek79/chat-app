@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
-import type { AppSocket } from '@/types';
+
 import { CHAT_NAMESPACE } from '@/constants';
+import type { AppSocket } from '@/types';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
 const SOCKET_PATH = process.env.NEXT_PUBLIC_SOCKET_PATH || '/socket.io'; // Стандартный путь

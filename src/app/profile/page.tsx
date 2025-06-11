@@ -1,12 +1,13 @@
-import { getCurrentUserFromSessionCookie } from '@/lib';
 import { redirect } from 'next/navigation';
-import { LOGIN_PAGE_ROUTE } from '@/constants';
-import { ClientUser } from '@/types';
-import { UserProfileEditForm } from '@/components';
-import Container from '@mui/material/Container';
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
+import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+
+import { UserProfileEditForm } from '@/components';
+import { LOGIN_PAGE_ROUTE } from '@/constants';
+import { getCurrentUserFromSessionCookie } from '@/lib';
+import { ClientUser } from '@/types';
 
 export default async function ProfilePage() {
     const userData: ClientUser | null = await getCurrentUserFromSessionCookie();

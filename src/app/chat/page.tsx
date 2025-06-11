@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Box, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { CHAT_PAGE_ROUTE } from '@/constants';
-import { fetchChatsForLayout } from '@/lib';
-import { Box, CircularProgress } from '@mui/material';
+
 import { Sidebar } from '@/components';
+import { CHAT_PAGE_ROUTE } from '@/constants';
 import { useAuth } from '@/hooks';
+import { fetchChatsForLayout } from '@/lib';
 import { ClientChat } from '@/types';
 
 /**

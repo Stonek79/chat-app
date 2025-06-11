@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, prisma, handleApiError, ApiError } from '@/lib';
+
+import { UserRoleEnum } from '@/constants';
+import { ApiError, getCurrentUser, handleApiError, prisma } from '@/lib';
 import {
-    ClientChat,
-    ClientChatParticipant,
+    AuthenticatedUser,
     ChatLastMessage,
     ChatWithDetails,
-    AuthenticatedUser,
+    ClientChat,
+    ClientChatParticipant,
 } from '@/types';
-import { UserRoleEnum } from '@/constants';
 
 interface GetChatParams {
     params: {
@@ -40,12 +41,12 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             where: {
                 chatId_userId: {
                     chatId: chatId,
-                    userId: currentUser.userId,
+                    userId: currentUser.id,
                 },
             },
         });
 
-        if (!participantRecord && !isAdmin) {
+        if (!participantRecord) {
             throw new ApiError('Доступ запрещен: вы не участник этого чата', 403);
         }
 
@@ -54,15 +55,7 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             include: {
                 participants: {
                     include: {
-                        user: {
-                            select: {
-                                id: true,
-                                username: true,
-                                avatarUrl: true,
-                                email: true,
-                                role: true,
-                            },
-                        },
+                        user: true,
                     },
                 },
                 messages: {
@@ -71,6 +64,16 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
                     include: {
                         sender: true,
                         readReceipts: true,
+                        actions: {
+                            include: {
+                                actor: {
+                                    select: {
+                                        id: true,
+                                        username: true,
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
             },
@@ -85,19 +88,17 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             ? chatFromDb.avatarUrl
             : null;
 
-        const chatParticipantsData: ClientChatParticipant[] = chatFromDb.participants.map(
-            p => ({
-                id: p.user.id,
-                username: p.user.username,
-                avatarUrl: p.user.avatarUrl,
-                role: p.role,
-                email: p.user.email,
-            })
-        );
+        const chatParticipantsData: ClientChatParticipant[] = chatFromDb.participants.map(p => ({
+            id: p.user.id,
+            username: p.user.username,
+            avatarUrl: p.user.avatarUrl,
+            role: p.role,
+            email: p.user.email,
+        }));
 
         if (!chatFromDb.isGroupChat) {
             const otherParticipantUser = chatFromDb.participants.find(
-                p => p.userId !== currentUser.userId
+                p => p.userId !== currentUser.id
             )?.user;
             if (otherParticipantUser) {
                 chatName = otherParticipantUser.username;
@@ -115,9 +116,9 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
                   id: lastMessageData.id,
                   content: lastMessageData.content,
                   createdAt: lastMessageData.createdAt,
-                  senderId: lastMessageData.sender.id,
-                  senderUsername: lastMessageData.sender.username,
-                  senderEmail: lastMessageData.sender.email,
+                  updatedAt: lastMessageData.updatedAt,
+                  chatId: lastMessageData.chatId,
+                  sender: lastMessageData.sender,
               }
             : undefined;
 
@@ -129,6 +130,8 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             members: chatParticipantsData,
             lastMessage: lastMessageClient,
             messages: chatFromDb.messages,
+            createdAt: chatFromDb.createdAt,
+            updatedAt: chatFromDb.updatedAt,
         };
 
         return NextResponse.json({ chat: clientChat });

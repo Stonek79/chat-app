@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 // import jwt from 'jsonwebtoken'; // Пока не используется для JWT, только для токена верификации
 import { randomBytes } from 'crypto';
-import { handleApiError, ApiError, prisma } from '@/lib';
+
+import { ApiError, handleApiError, prisma } from '@/lib';
 import { registerSchema } from '@/schemas';
 
 /**

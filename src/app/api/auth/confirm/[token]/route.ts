@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError, ApiError, prisma } from '@/lib';
-import jwt from 'jsonwebtoken';
-import { AUTH_TOKEN_COOKIE_NAME, HOME_PAGE_ROUTE } from '@/constants';
 import { User } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+
+import { AUTH_TOKEN_COOKIE_NAME, HOME_PAGE_ROUTE } from '@/constants';
+import { ApiError, handleApiError, prisma } from '@/lib';
 
 interface ConfirmParams {
     params: {
@@ -68,10 +69,14 @@ export async function GET(req: NextRequest, { params }: ConfirmParams) {
             const sessionToken = req.cookies.get(AUTH_TOKEN_COOKIE_NAME)?.value;
             if (sessionToken) {
                 try {
-                    jwt.verify(sessionToken, process.env.JWT_SECRET as string);
+                    jwt.verify(sessionToken, process.env.JWT_SECRET || '');
                     return NextResponse.redirect(homeUrl);
                 } catch (e) {
-                    // Сессия невалидна, нужно создать новую
+                    console.error(
+                        'JWT_SECRET не определен в .env для /api/auth/confirm (блок sessionToken)'
+                    );
+            throw new ApiError('Ошибка конфигурации сервера (JWT) - секрет не найден', 500);
+
                 }
             }
             const tokenPayload = {
@@ -119,7 +124,7 @@ export async function GET(req: NextRequest, { params }: ConfirmParams) {
             role: updatedUser.role,
         };
 
-        const jwtSecret: jwt.Secret = process.env.JWT_SECRET as string;
+        const jwtSecret: jwt.Secret = process.env.JWT_SECRET || '';
         if (!jwtSecret) {
             console.error('JWT_SECRET не определен в .env для /api/auth/confirm');
             throw new ApiError('Ошибка конфигурации сервера (JWT) - секрет не найден', 500);

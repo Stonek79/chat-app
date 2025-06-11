@@ -1,6 +1,7 @@
 'use client';
 
 import Alert, { AlertProps } from '@mui/material/Alert';
+
 import { useAuth } from '@/hooks';
 
 // interface AuthErrorAlertProps extends Omit<AlertProps, 'severity' | 'children'> {}

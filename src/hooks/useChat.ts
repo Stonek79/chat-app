@@ -1,33 +1,34 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { connectSocket, fetchChat } from '@/lib';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
 import {
     CLIENT_EVENT_JOIN_CHAT,
     CLIENT_EVENT_LEAVE_CHAT,
+    CLIENT_EVENT_MARK_AS_READ,
     CLIENT_EVENT_SEND_MESSAGE,
+    SERVER_EVENT_CHAT_CREATED,
+    SERVER_EVENT_MESSAGE_DELETED,
+    SERVER_EVENT_MESSAGES_READ,
     SERVER_EVENT_RECEIVE_MESSAGE,
     SERVER_EVENT_USER_JOINED,
     SERVER_EVENT_USER_LEFT,
-    SERVER_EVENT_CHAT_CREATED,
     SOCKET_EVENT_CONNECT,
     SOCKET_EVENT_DISCONNECT,
-    CLIENT_EVENT_MARK_AS_READ,
-    SERVER_EVENT_MESSAGES_READ,
-    SERVER_EVENT_MESSAGE_DELETED,
 } from '@/constants';
-
+import { connectSocket, fetchChat } from '@/lib';
 import type {
     AppSocket,
-    MessageContentType,
-    SocketMessagePayload,
-    SocketUserPresencePayload,
-    ClientSendMessagePayload,
-    Message,
     BasicUser,
     ClientChat,
     ClientChatParticipant,
-    MessageReadReceipt,
     ClientMessageAction,
+    ClientSendMessagePayload,
+    Message,
+    MessageContentType,
+    MessageReadReceipt,
+    SocketMessagePayload,
+    SocketUserPresencePayload,
 } from '@/types';
+
 import { useAuth } from './useAuth';
 
 export interface UseChatReturn {
@@ -108,14 +109,6 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
     }, [chatId]);
 
     useEffect(() => {
-        console.log(
-            '[useChat DEBUG] Main chat logic effect RUNNING. Deps - chatId:',
-            chatId,
-            'user:',
-            user?.id,
-            'initialMessagesLoaded:',
-            initialMessagesLoaded
-        );
         const currentSocket = socketRef.current;
         if (chatId && currentSocket) {
             setIsLoadingChatDetails(true);
@@ -214,10 +207,6 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
                 readAt: Date;
             }) => {
                 if (payload.chatId === chatId) {
-                    console.log(
-                        '[useChat] Received SERVER_EVENT_MESSAGES_READ:',
-                        JSON.stringify(payload)
-                    );
                     setMessages(prevMessages => {
                         const updatedMessages = prevMessages.map(msg => {
                             if (msg.id && msg.id <= payload.lastReadMessageId) {
@@ -298,16 +287,20 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
     }, [chatId, user]);
 
     const sendMessage = useCallback(
-        (content: string, contentType: MessageContentType = 'TEXT', mediaUrl?: string) => {
+        (content: string, contentType: MessageContentType = 'TEXT') => {
             const currentSocket = socketRef.current;
             if (currentSocket && user && chatId) {
+                const clientTempId = crypto.randomUUID();
+
                 const payload: ClientSendMessagePayload = {
                     chatId,
                     content,
                     contentType,
+                    clientTempId,
                 };
-                currentSocket.emit(CLIENT_EVENT_SEND_MESSAGE, payload, ack => {
-                    if (ack && typeof ack === 'object') {
+
+                currentSocket.emit(CLIENT_EVENT_SEND_MESSAGE, payload, (ack: unknown) => {
+                    if (ack && typeof ack === 'object' && 'success' in ack) {
                         const response = ack as {
                             success: boolean;
                             messageId?: string;

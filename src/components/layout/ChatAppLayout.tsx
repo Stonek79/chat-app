@@ -1,15 +1,16 @@
 'use client';
 
 import { ReactNode } from 'react';
+import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import Box from '@mui/material/Box';
+
 import { Sidebar } from '@/components';
-import { ClientChat, ClientUser } from '@/types';
+import { AuthenticatedUser, ClientChat } from '@/types';
 
 interface AdaptiveChatLayoutProps {
     children: ReactNode;
-    currentUser: ClientUser;
+    currentUser: AuthenticatedUser;
     chats: ClientChat[];
 }
 
@@ -47,9 +48,7 @@ export function ChatAppLayout({ children, currentUser, chats }: AdaptiveChatLayo
                 <Sidebar initialUser={currentUser} chats={chats} />
             </Box>
 
-            <Box component="main" sx={{ flexGrow: 1, height: '100%' }}>
-                {children}
-            </Box>
+            <Box sx={{ flexGrow: 1, height: '100%' }}>{children}</Box>
         </Box>
     );
 }

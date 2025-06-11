@@ -1,14 +1,17 @@
 'use client';
 
 import React, { useCallback, useState } from 'react';
-import { Box, CircularProgress, Alert } from '@mui/material';
-import { ChatListItem } from './ChatListItem';
+import { Alert,Box, CircularProgress } from '@mui/material';
+
 import { useChat } from '@/hooks';
 import { useMessageListScrollAndView } from '@/hooks';
 import type { DisplayMessage } from '@/types';
-import { MessageInput } from './MessageInput';
+
 import { ConfirmationModal } from '../common';
+
 import { ChatHeader } from './ChatHeader';
+import { ChatListItem } from './ChatListItem';
+import { MessageInput } from './MessageInput';
 
 interface ChatContentProps {
     chatId: string;

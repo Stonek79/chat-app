@@ -1,5 +1,6 @@
 import { User, UserRole } from '@prisma/client';
 import { z } from 'zod';
+
 import { updateUserSchema } from '@/schemas';
 
 export type { User, UserRole } from '@prisma/client';

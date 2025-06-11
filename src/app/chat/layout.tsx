@@ -1,10 +1,11 @@
-import { ErrorBoundary } from '@/components';
 import { ReactNode, Suspense } from 'react';
-import { LOGIN_PAGE_ROUTE } from '@/constants';
-import { getCurrentUserFromSessionCookie, fetchChatsForLayout } from '@/lib';
 import { redirect } from 'next/navigation';
 import { Box, CircularProgress, Typography } from '@mui/material';
+
+import { ErrorBoundary } from '@/components';
 import { ChatAppLayout } from '@/components';
+import { LOGIN_PAGE_ROUTE } from '@/constants';
+import { fetchChatsForLayout,getCurrentUserFromSessionCookie } from '@/lib';
 
 const ErrorFallback = ({ error }: { error?: Error }) => (
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>

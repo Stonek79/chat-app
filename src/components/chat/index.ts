@@ -1,2 +1,2 @@
-export * from './ChatListItem';
 export * from './ChatContent';
+export * from './ChatListItem';

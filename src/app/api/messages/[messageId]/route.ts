@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, prisma, getRedisPublisher } from '@/lib';
-import { UserRoleEnum, ChatParticipantRoleEnum, MessageActionTypeEnum } from '@/constants';
+
+import {
+    ChatParticipantRoleEnum,
+    MessageActionTypeEnum,
+    REDIS_EVENT_MESSAGE_DELETED,
+    REDIS_SOCKET_NOTIFICATIONS_CHANNEL,
+    UserRoleEnum,
+} from '@/constants';
+import { getCurrentUser, getRedisPublisher, prisma } from '@/lib';
+import type { ClientMessageAction } from '@/types';
 
 const MESSAGE_DELETION_WINDOW_MINUTES = 15;
 
@@ -11,7 +19,7 @@ const MESSAGE_DELETION_WINDOW_MINUTES = 15;
 export async function DELETE(req: NextRequest, { params }: { params: { messageId: string } }) {
     try {
         const currentUser = await getCurrentUser(req);
-        if (!currentUser?.userId) {
+        if (!currentUser?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -20,7 +28,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { messageId
             return NextResponse.json({ error: 'Message ID is required' }, { status: 400 });
         }
 
-        const currentUserId = currentUser.userId;
+        const currentUserId = currentUser.id;
 
         // 1. Найти сообщение и связанную информацию для проверки прав
         const message = await prisma.message.findUnique({
@@ -91,21 +99,25 @@ export async function DELETE(req: NextRequest, { params }: { params: { messageId
         // 4. Оповестить socket-server через Redis
         const redisPublisher = await getRedisPublisher();
         if (redisPublisher) {
+            // Убираем поля, которых нет в ClientMessageAction
+            const clientAction: ClientMessageAction = {
+                id: deleteAction.id,
+                type: deleteAction.type,
+                actor: deleteAction.actor,
+                createdAt: deleteAction.createdAt,
+                newContent: null,
+            };
+
             const notificationPayload = {
-                type: 'MESSAGE_DELETED',
+                type: REDIS_EVENT_MESSAGE_DELETED,
                 data: {
                     chatId: message.chatId,
                     messageId: message.id,
-                    action: {
-                        id: deleteAction.id,
-                        type: deleteAction.type,
-                        actor: deleteAction.actor,
-                        createdAt: deleteAction.createdAt,
-                    },
+                    action: clientAction,
                 },
             };
             await redisPublisher.publish(
-                process.env.REDIS_SOCKET_NOTIFICATIONS_CHANNEL!,
+                REDIS_SOCKET_NOTIFICATIONS_CHANNEL,
                 JSON.stringify(notificationPayload)
             );
         }

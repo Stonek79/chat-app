@@ -1,25 +1,27 @@
 import type { z } from 'zod';
+
 import type {
-    Message,
-    MessageContentType,
-    ClientMessageAction,
-    MessageReadReceipt,
-} from '../message';
-import type { BasicUser } from '../user';
-import type {
-    clientChatParticipantSchema,
     chatLastMessageSchema,
+    clientChatParticipantSchema,
     clientChatSchema,
     createGroupChatSchema,
-    createPrivateChatSchema,
     createMessageSchema,
+    createPrivateChatSchema,
     sendMessageSocketSchema,
 } from '@/schemas';
 
+import type {
+    ClientMessageAction,
+    Message,
+    MessageContentType,
+    MessageReadReceipt,
+} from '../message';
+import type { BasicUser } from '../user';
+
 export type {
     Chat,
-    ChatParticipant as PrismaChatParticipant,
     ChatParticipantRole,
+    ChatParticipant as PrismaChatParticipant,
 } from '@prisma/client';
 
 /**

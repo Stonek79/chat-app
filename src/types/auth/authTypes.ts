@@ -1,6 +1,7 @@
-import type { z } from 'zod';
 import type { UserRole } from '@prisma/client';
 import type { JWTPayload as JoseJWTPayload } from 'jose';
+import type { z } from 'zod';
+
 import type {
     loginSchema,
     registerSchema,
@@ -55,3 +56,10 @@ export interface AppJWTPayload extends JoseJWTPayload {
     role: UserRole;
     userAvatar?: string;
 }
+
+/**
+ * @description Минимальный набор данных для аутентифицированного пользователя,
+ * извлекаемый из JWT и используемый на сервере для проверок.
+ * Выводится из `userResponseSchema` для консистентности с `ClientUser`.
+ */
+export type AuthenticatedUser = z.infer<typeof userResponseSchema>;

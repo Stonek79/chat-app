@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import Box from '@mui/material/Box';
-import Alert from '@mui/material/Alert';
 
 interface ErrorProps {
     error: Error & { digest?: string };
@@ -51,7 +51,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
 
                 <Button
                     variant="contained"
-                    onClick={reset} // Attempt to recover by trying to re-render the segment
+                    onClick={reset}
                     sx={{ mt: 2, px: 4, py: 1 }}
                 >
                     Попробовать снова

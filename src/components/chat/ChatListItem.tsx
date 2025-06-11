@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, memo } from 'react';
-import { Box, Typography, Paper, IconButton, Menu, MenuItem, Avatar } from '@mui/material';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import DoneAllIcon from '@mui/icons-material/DoneAll';
+import { memo,useState } from 'react';
 import CheckIcon from '@mui/icons-material/Check';
+import DoneAllIcon from '@mui/icons-material/DoneAll';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { Avatar,Box, IconButton, Menu, MenuItem, Paper, Typography } from '@mui/material';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import type { DisplayMessage } from '@/types';
+
 import { MessageActionTypeEnum } from '@/constants';
+import type { DisplayMessage } from '@/types';
 
 interface MessageItemProps {
     message: DisplayMessage;

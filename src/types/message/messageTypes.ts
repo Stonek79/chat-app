@@ -1,10 +1,12 @@
-import { Prisma, type MessageReadReceipt, type MessageContentType } from '@prisma/client';
-import type { Chat, PrismaChatParticipant } from '../chat';
-import type { BasicUser, User } from '../user';
+import { type MessageContentType,type MessageReadReceipt, Prisma } from '@prisma/client';
 import { z } from 'zod';
+
 import type { displayMessageSchema } from '@/schemas';
 
-export { MessageReadReceipt, MessageContentType };
+import type { Chat, PrismaChatParticipant } from '../chat';
+import type { BasicUser, User } from '../user';
+
+export { MessageContentType,MessageReadReceipt };
 
 export type Message = Prisma.MessageGetPayload<{
     include: {
@@ -62,3 +64,9 @@ export type MessageAction = Prisma.MessageActionGetPayload<{
 }>;
 
 export type ClientMessageAction = Omit<MessageAction, 'messageId' | 'actorId'>;
+
+export type MessageDeletedPayload = {
+    chatId: string;
+    messageId: string;
+    action: ClientMessageAction;
+};

@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-    getRedisPublisher,
-    getCurrentUser,
-    prisma,
-    handleApiError,
-    ApiError,
-    mapPrismaChatToClientChat,
-} from '@/lib';
-import type { AuthenticatedUser } from '@/types';
+
 import { ChatParticipantRoleEnum } from '@/constants';
+import {
+    ApiError,
+    getCurrentUser,
+    getRedisPublisher,
+    handleApiError,
+    mapPrismaChatToClientChat,
+    prisma,
+} from '@/lib';
 import { createGroupChatSchema, createPrivateChatSchema } from '@/schemas';
+import type { AuthenticatedUser } from '@/types';
 
 /**
  * API маршрут для создания нового чата (личного или группового).

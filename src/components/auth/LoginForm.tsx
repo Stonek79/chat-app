@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { FormEvent, useEffect,useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks';
-import { HOME_PAGE_ROUTE, REGISTER_PAGE_ROUTE } from '@/constants';
-import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+
+import { HOME_PAGE_ROUTE, REGISTER_PAGE_ROUTE } from '@/constants';
+import { useAuth } from '@/hooks';
+
+import { AuthErrorAlert, AuthRedirectLink,SubmitButton } from './common';
 import { EmailField, PasswordField } from './fields';
-import { SubmitButton, AuthErrorAlert, AuthRedirectLink } from './common';
 
 interface LoginFormProps {
     returnTo?: string;
@@ -40,7 +42,7 @@ export function LoginForm({ returnTo, registrationSuccess, onLoginSuccess }: Log
 
         const loggedInUser = await auth.login({ email, password }, returnTo);
         if (loggedInUser) {
-            let redirectPath =
+            const redirectPath =
                 returnTo &&
                 returnTo.startsWith('/') &&
                 !returnTo.startsWith('//') &&

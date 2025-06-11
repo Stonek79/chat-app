@@ -1,6 +1,6 @@
-export * from './chat';
-export * from './message';
 export * from './auth';
-export * from './profile';
-export * from './layout';
+export * from './chat';
 export { WelcomePageContent } from './home/WelcomePageContent';
+export * from './layout';
+export * from './message';
+export * from './profile';

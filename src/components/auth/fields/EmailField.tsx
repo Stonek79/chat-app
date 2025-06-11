@@ -1,6 +1,7 @@
 'use client';
 
 import TextField, { TextFieldProps } from '@mui/material/TextField';
+
 import { useAuth } from '@/hooks'; // Для очистки общей ошибки при изменении поля
 
 // Исключаем пропсы, которые мы будем устанавливать по умолчанию или управлять ими изнутри

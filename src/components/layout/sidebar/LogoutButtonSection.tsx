@@ -1,10 +1,11 @@
 'use client';
 
-import { useAuth } from '@/hooks';
-import Button from '@mui/material/Button';
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
 import LogoutIcon from '@mui/icons-material/Logout';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
+
+import { useAuth } from '@/hooks';
 
 export function LogoutButtonSection() {
     const { logout, isLoading } = useAuth(); // Добавил isLoading для дизейбла кнопки при выходе

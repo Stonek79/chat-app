@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { handleApiError, ApiError, prisma } from '@/lib';
+
 import { AUTH_TOKEN_COOKIE_NAME } from '@/constants';
+import { ApiError, handleApiError, prisma } from '@/lib';
 import { loginSchema } from '@/schemas';
 
 /**

@@ -1,8 +1,9 @@
 'use server';
 
+import { headers } from 'next/headers';
+
 import { API_CHATS_ROUTE, PUBLIC_APP_API_URL } from '@/constants';
 import { ClientChat } from '@/types';
-import { headers } from 'next/headers';
 
 export const fetchChat = async (chatId: string) => {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || PUBLIC_APP_API_URL;

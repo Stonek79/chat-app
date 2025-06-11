@@ -1,14 +1,15 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+import { UserRoleEnum } from '@/constants';
 import {
-    getCurrentUser,
-    prisma,
-    handleApiError,
     ApiError,
+    getCurrentUser,
+    handleApiError,
     mapPrismaChatToClientChat,
+    prisma,
     PrismaChatWithDetails,
 } from '@/lib';
-import type { ClientChat, AuthenticatedUser } from '@/types';
-import { UserRoleEnum } from '@/constants';
+import type { AuthenticatedUser, ClientChat } from '@/types';
 
 /**
  * GET /api/chats
@@ -49,7 +50,16 @@ export async function GET(req: NextRequest) {
                 include: {
                     sender: true,
                     readReceipts: true,
-                    actions: true,
+                    actions: {
+                        include: {
+                            actor: {
+                                select: {
+                                    id: true,
+                                    username: true,
+                                },
+                            },
+                        },
+                    },
                 },
             },
             _count: {
@@ -58,7 +68,7 @@ export async function GET(req: NextRequest) {
                         where: {
                             senderId: { not: currentUser.id },
                             readReceipts: {
-                                none: {
+                                some: {
                                     userId: currentUser.id,
                                 },
                             },
@@ -68,22 +78,15 @@ export async function GET(req: NextRequest) {
             },
         };
 
-        if (isAdmin) {
-            rawChatsFromDb = await prisma.chat.findMany({
-                include: commonChatIncludes,
-            });
-        } else {
-            // Обычный пользователь получает только те чаты, в которых он является участником
-            // Запрос изменен, чтобы соответствовать структуре PrismaChatWithDetails напрямую
-            rawChatsFromDb = await prisma.chat.findMany({
-                where: {
-                    participants: {
-                        some: { userId: currentUser.id },
-                    },
+        // Обычный пользователь получает только те чаты, в которых он является участником.
+        rawChatsFromDb = await prisma.chat.findMany({
+            where: {
+                participants: {
+                    some: { userId: currentUser.id },
                 },
-                include: commonChatIncludes,
-            });
-        }
+            },
+            include: commonChatIncludes,
+        });
 
         if (!rawChatsFromDb || rawChatsFromDb.length === 0) {
             return NextResponse.json({ chats: [] });
@@ -99,7 +102,7 @@ export async function GET(req: NextRequest) {
                 uniqueClientChatsMap.set(chat.id, chat);
             }
         });
-        let dedupedClientChats = Array.from(uniqueClientChatsMap.values());
+        const dedupedClientChats = Array.from(uniqueClientChatsMap.values());
 
         dedupedClientChats.sort((a, b) => {
             const timeA = a.lastMessage?.createdAt

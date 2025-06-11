@@ -1,17 +1,17 @@
 'use client';
 
 import NextLink from 'next/link';
-import { ClientUser } from '@/types';
-import { PROFILE_PAGE_ROUTE } from '@/constants';
-
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Avatar from '@mui/material/Avatar';
-import IconButton from '@mui/material/IconButton';
 import SettingsIcon from '@mui/icons-material/Settings';
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+
+import { PROFILE_PAGE_ROUTE } from '@/constants';
+import { AuthenticatedUser } from '@/types';
 
 interface UserProfilePanelProps {
-    user: ClientUser | null; // Принимаем ClientUser или null
+    user: AuthenticatedUser | null; // Принимаем ClientUser или null
 }
 
 export function UserProfilePanel({ user }: UserProfilePanelProps) {

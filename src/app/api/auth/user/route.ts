@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError, ApiError, prisma, getCurrentUser } from '@/lib';
-import { ClientUser } from '@/types';
+
+import { ApiError, getCurrentUser,handleApiError, prisma } from '@/lib';
 import { updateUserSchema } from '@/schemas';
+import { ClientUser } from '@/types';
 
 /**
  * @swagger

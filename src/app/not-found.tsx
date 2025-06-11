@@ -1,8 +1,9 @@
 import Link from 'next/link';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import Box from '@mui/material/Box';
+
 import { HOME_PAGE_ROUTE } from '@/constants';
 
 export default function NotFound() {

@@ -1,24 +1,26 @@
-import type { UserRole } from '../user';
-import type { ClientMessageAction } from '../message';
-import type {
-    ClientChat,
-    SocketMessagePayload,
-    ClientSendMessagePayload,
-    ChatParticipantRole,
-} from '../chat';
 import type { Socket as SocketIOClientDefault } from 'socket.io-client';
+
 import {
     CLIENT_EVENT_JOIN_CHAT,
     CLIENT_EVENT_LEAVE_CHAT,
-    CLIENT_EVENT_SEND_MESSAGE,
     CLIENT_EVENT_MARK_AS_READ,
+    CLIENT_EVENT_SEND_MESSAGE,
+    SERVER_EVENT_CHAT_CREATED,
+    SERVER_EVENT_MESSAGE_DELETED,
+    SERVER_EVENT_MESSAGES_READ,
     SERVER_EVENT_RECEIVE_MESSAGE,
     SERVER_EVENT_USER_JOINED,
     SERVER_EVENT_USER_LEFT,
-    SERVER_EVENT_CHAT_CREATED,
-    SERVER_EVENT_MESSAGES_READ,
-    SERVER_EVENT_MESSAGE_DELETED,
 } from '@/constants';
+
+import type {
+    ChatParticipantRole,
+    ClientChat,
+    ClientSendMessagePayload,
+    SocketMessagePayload,
+} from '../chat';
+import type { MessageDeletedPayload } from '../message';
+import type { UserRole } from '../user';
 
 export { SocketIOClientDefault };
 
@@ -88,11 +90,7 @@ export interface ServerToClientEvents {
         lastReadMessageId: string;
         readAt: Date;
     }) => void;
-    [SERVER_EVENT_MESSAGE_DELETED]: (payload: {
-        chatId: string;
-        messageId: string;
-        action: ClientMessageAction;
-    }) => void;
+    [SERVER_EVENT_MESSAGE_DELETED]: (payload: MessageDeletedPayload) => void;
     // Пример другого события от сервера:
     // 'server:typing_indicator': (data: { chatId: string; userId: string; isTyping: boolean }) => void;
 

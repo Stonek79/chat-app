@@ -1,11 +1,11 @@
-import { LOGIN_PAGE_ROUTE, REGISTER_PAGE_ROUTE } from '@/constants';
-
-import Container from '@mui/material/Container';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
 import NextLink from 'next/link';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Container from '@mui/material/Container';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+
+import { LOGIN_PAGE_ROUTE, REGISTER_PAGE_ROUTE } from '@/constants';
 
 export function WelcomePageContent() {
     return (

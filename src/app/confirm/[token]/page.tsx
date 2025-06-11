@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { API_AUTH_CONFIRM_ROUTE_PREFIX, LOGIN_PAGE_ROUTE } from '@/constants';
-
-import Container from '@mui/material/Container';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
+
+import { API_AUTH_CONFIRM_ROUTE_PREFIX, LOGIN_PAGE_ROUTE } from '@/constants';
 
 export default function EmailConfirmPage() {
     const [isLoading, setIsLoading] = useState(true);
@@ -44,22 +44,28 @@ export default function EmailConfirmPage() {
                             'Не удалось подтвердить email. Ссылка может быть недействительной или устаревшей.'
                     );
                 }
-            } catch (e: any) {
+            } catch (e: unknown) {
                 console.error('Ошибка при вызове API подтверждения или обработке ответа:', e);
                 // Эта ошибка может быть сетевой или если response.json() упал после response.ok=false.
                 // Если error еще не установлен (т.е. response.ok было true, но что-то пошло не так после,
                 // или это была сетевая ошибка до получения response), устанавливаем ошибку.
                 if (!error) {
                     // Проверяем, не установлена ли уже ошибка из блока 'else'
-                    setError(e.message || 'Произошла ошибка при обработке вашего запроса.');
+                    if (e instanceof Error) {
+                        setError(e.message || 'Произошла ошибка при обработке вашего запроса.');
+                    } else {
+                        setError('Произошла неизвестная ошибка при обработке вашего запроса.');
+                    }
                 }
             } finally {
                 setIsLoading(false);
             }
         };
 
-        confirmEmail();
-    }, [token, error]); // Добавил error в зависимости, чтобы избежать установки ошибки из catch, если она уже есть
+        if (token) {
+            confirmEmail();
+        }
+    }, [token]);
 
     const handleGoToLogin = () => {
         router.push(LOGIN_PAGE_ROUTE);

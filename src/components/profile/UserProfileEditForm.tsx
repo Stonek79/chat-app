@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
-import { useAuth } from '@/hooks';
-import { ClientUser, UpdateUserPayload } from '@/types';
-
+import { FormEvent, useEffect, useState } from 'react';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
+import TextField from '@mui/material/TextField';
+import { toast } from 'react-hot-toast';
+
+import { useAuth } from '@/hooks';
+import { ClientUser, UpdateUserPayload } from '@/types';
 
 interface UserProfileEditFormProps {
     initialUserData: ClientUser;
@@ -48,17 +49,12 @@ export function UserProfileEditForm({ initialUserData }: UserProfileEditFormProp
             setSuccessMessage('Имя пользователя успешно обновлено!');
             // AuthProvider должен обновить auth.user, что приведет к обновлению initialUserData в ProfilePage,
             // и затем этот компонент получит новый initialUserData.username через useEffect.
-        } catch (error: any) {
-            // authError будет установлен в AuthProvider и синхронизирован через useEffect
-            // Можно здесь дополнительно установить setCurrentAuthError, если ошибка не дошла до AuthProvider
-            // или если auth.updateUser не обрабатывает ошибку в AuthProvider должным образом.
-            if (!auth.authError) {
-                // Если AuthProvider не установил ошибку
-                setCurrentAuthError(
-                    error.message || 'Произошла неизвестная ошибка при обновлении.'
-                );
-            }
-            console.error('Ошибка при обновлении профиля в форме:', error);
+        } catch (error: unknown) {
+            console.error('Ошибка при обновлении профиля:', error);
+            // Можно использовать react-hot-toast для отображения ошибки пользователю
+            const errorMessage =
+                error instanceof Error ? error.message : 'Не удалось обновить профиль.';
+            toast.error(errorMessage);
         }
     };
 

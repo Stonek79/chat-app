@@ -1,13 +1,14 @@
 'use server';
 
-import { NextRequest } from 'next/server';
-import jwt from 'jsonwebtoken';
-import { AUTH_TOKEN_COOKIE_NAME } from '@/constants';
-import { AppJWTPayload, AuthenticatedUser, ClientUser } from '@/types';
-import { DecodedTokenInternal } from '@/types';
-import { ApiError } from '../api';
 import { cookies } from 'next/headers';
+import { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
+import jwt from 'jsonwebtoken';
+
+import { AUTH_TOKEN_COOKIE_NAME } from '@/constants';
+import type { AppJWTPayload, AuthenticatedUser } from '@/types';
+
+import { ApiError } from '../api';
 
 /**
  * Извлекает и верифицирует JWT из cookie запроса,
@@ -35,10 +36,16 @@ export async function getCurrentUser(req: NextRequest): Promise<AuthenticatedUse
     }
 
     try {
-        const decoded = jwt.verify(token, jwtSecret) as DecodedTokenInternal;
+        // Используем AppJWTPayload для строгой типизации
+        const decoded = jwt.verify(token, jwtSecret);
+
+        if (typeof decoded === 'string') {
+            console.warn('getCurrentUser: Ошибка верификации JWT: decoded is string');
+            return null;
+        }
 
         return {
-            userId: decoded.userId,
+            id: decoded.userId,
             email: decoded.email,
             username: decoded.username,
             role: decoded.role,
@@ -63,14 +70,13 @@ export async function ensureAuthenticated(req: NextRequest): Promise<Authenticat
     return user;
 }
 
-
 /**
  * Извлекает и верифицирует JWT из cookie в Server Component,
- * возвращая данные аутентифицированного пользователя (ClientUser) или null.
+ * возвращая данные аутентифицированного пользователя (AuthenticatedUser) или null.
  * Использует 'jose' для верификации, совместимой с Edge Runtime.
- * @returns Promise<ClientUser | null>
+ * @returns Promise<AuthenticatedUser | null>
  */
-export async function getCurrentUserFromSessionCookie(): Promise<ClientUser | null> {
+export async function getCurrentUserFromSessionCookie(): Promise<AuthenticatedUser | null> {
     const cookieStore = await cookies();
     const tokenCookie = cookieStore.get(AUTH_TOKEN_COOKIE_NAME);
 
@@ -88,15 +94,13 @@ export async function getCurrentUserFromSessionCookie(): Promise<ClientUser | nu
 
     try {
         const secret = new TextEncoder().encode(JWT_SECRET_KEY);
-        const { payload } = await jwtVerify(token, secret);
-        const decodedPayload = payload as AppJWTPayload;
+        const { payload } = await jwtVerify<AppJWTPayload>(token, secret);
 
         return {
-            id: decodedPayload.userId,
-            email: decodedPayload.email,
-            username: decodedPayload.username,
-            role: decodedPayload.role,
-            avatarUrl: decodedPayload.userAvatar || '',
+            id: payload.userId,
+            email: payload.email,
+            username: payload.username,
+            role: payload.role,
         };
     } catch (error: unknown) {
         console.warn(

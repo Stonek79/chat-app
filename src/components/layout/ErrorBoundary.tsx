@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { Box, Typography, Button, Container, Paper } from '@mui/material';
+import { Box, Button, Container, Paper,Typography } from '@mui/material';
 
 interface Props {
   children: ReactNode;
