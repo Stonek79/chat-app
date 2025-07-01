@@ -6,7 +6,7 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 
 import { CHAT_PAGE_ROUTE } from '@/constants';
-import { AuthenticatedUser, ClientChat,ClientUser } from '@/types';
+import { AuthenticatedUser, ClientChat } from '@/types';
 
 import { ChatListSection } from './sidebar/ChatListSection';
 import { LogoutButtonSection } from './sidebar/LogoutButtonSection';

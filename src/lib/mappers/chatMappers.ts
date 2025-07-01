@@ -61,7 +61,9 @@ export const mapPrismaChatToClientChat = (
         _count: count,
     } = chatDb;
 
-    const lastMessage = messages?.[0] ? mapPrismaMessageToDisplayMessage(messages[0]) : null;
+    const lastMessage = messages?.[0]
+        ? mapPrismaMessageToDisplayMessage(messages[0], currentUserId)
+        : null;
 
     let chatName = name;
     let chatAvatar = null;

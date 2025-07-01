@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useState } from 'react';
-import { Alert,Box, CircularProgress } from '@mui/material';
+import { Alert, Box, CircularProgress } from '@mui/material';
 
 import { useChat } from '@/hooks';
 import { useMessageListScrollAndView } from '@/hooks';
@@ -10,7 +10,7 @@ import type { DisplayMessage } from '@/types';
 import { ConfirmationModal } from '../common';
 
 import { ChatHeader } from './ChatHeader';
-import { ChatListItem } from './ChatListItem';
+import { ChatMessage } from './message';
 import { MessageInput } from './MessageInput';
 
 interface ChatContentProps {
@@ -127,21 +127,27 @@ export const ChatContent = ({ chatId, currentUserId, isAdmin }: ChatContentProps
                         Сообщений пока нет. Начните общение!
                     </Box>
                 )}
-                {messages.map(message => (
-                    <div
-                        key={message.id}
-                        ref={el => setMessageRef(String(message.id), el)}
-                        data-message-id={String(message.id)}
-                    >
-                        <ChatListItem
-                            message={message}
-                            currentUserId={currentUserId}
-                            isAdmin={isAdmin}
-                            onEdit={handleEditMessage}
-                            onDelete={handleDeleteRequest}
-                        />
-                    </div>
-                ))}
+                {messages.map((message, i) => {
+                    const isSameSender = message?.sender?.id === messages[i - 1]?.sender?.id;
+
+                    return (
+                        <div
+                            key={message.id}
+                            ref={el => setMessageRef(String(message.id), el)}
+                            data-message-id={String(message.id)}
+                        >
+                            <ChatMessage
+                                isSameSender={isSameSender}
+                                message={message}
+                                currentUserId={currentUserId}
+                                isAdmin={isAdmin}
+                                onEdit={handleEditMessage}
+                                onDelete={handleDeleteRequest}
+                                isGroupChat={chatDetails?.isGroupChat ?? false}
+                            />
+                        </div>
+                    );
+                })}
                 <div ref={messagesEndRef} />
             </Box>
             <MessageInput onSendMessage={sendMessage} isConnected={isConnected} />

@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+console.log(__dirname);
+
 const compat = new FlatCompat({
     baseDirectory: __dirname,
 });
@@ -15,17 +17,18 @@ const eslintConfig = [
     {
         ignores: ['.next', 'node_modules', 'dist', 'public', 'prisma/seed.ts', 'memory-bank/'],
     },
-    // Единый конфигурационный блок для Next.js приложения
+    // Блок 1: Базовая конфигурация для Next.js приложения
     ...compat.extends('next/core-web-vitals', 'next/typescript').map(config => ({
         ...config,
         files: ['src/**/*.{ts,tsx}'],
+    })),
+    // Блок 2: Наши кастомные правила, применяемые поверх базовых
+    {
+        files: ['src/**/*.{ts,tsx}'],
         plugins: {
-            ...config.plugins,
             'simple-import-sort': simpleImportSort,
         },
         rules: {
-            ...config.rules, // Начинаем с базовых правил
-            // ===== Наши кастомные правила (имеют приоритет) =====
             'simple-import-sort/imports': [
                 'error',
                 {
@@ -97,7 +100,7 @@ const eslintConfig = [
                 },
             ],
         },
-    })),
+    },
     // Конфигурация для Socket.IO сервера
     ...compat.extends('plugin:@typescript-eslint/recommended').map(config => ({
         ...config,
@@ -106,9 +109,7 @@ const eslintConfig = [
     {
         files: ['socket-server/**/*.ts'],
         languageOptions: {
-            globals: {
-                ...globals.node,
-            },
+            globals: { ...globals.node },
         },
         plugins: { 'simple-import-sort': simpleImportSort },
         rules: {
@@ -126,6 +127,14 @@ const eslintConfig = [
             'simple-import-sort/exports': 'error',
             '@typescript-eslint/no-unused-vars': 'error',
             '@typescript-eslint/no-explicit-any': 'error',
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector: 'TSAsExpression',
+                    message:
+                        'Type assertions using `as` are forbidden. Use type guards, Zod parsing, or other type-safe alternatives instead.',
+                },
+            ],
         },
     },
 ];

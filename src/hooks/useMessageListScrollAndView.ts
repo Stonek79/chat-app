@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback,useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
-import type { SocketMessagePayload } from '@/types';
+import type { DisplayMessage } from '@/types';
 
 import { useDebounce } from './useDebounce';
 
 interface UseMessageListScrollAndViewProps {
-    messages: SocketMessagePayload[];
+    messages: DisplayMessage[];
     currentUserId: string;
     loading: boolean;
     onMessageView: (messageId: string) => void;
@@ -129,7 +129,7 @@ export const useMessageListScrollAndView = ({
             const firstUnreadMessage = messages.find(
                 msg =>
                     msg.sender.id !== currentUserId &&
-                    !msg.readReceipts.some(r => r.userId === currentUserId)
+                    !msg.readReceipts?.some(r => r.userId === currentUserId)
             );
             if (firstUnreadMessage?.id) {
                 const unreadElement = messageRefs.current.get(firstUnreadMessage.id);

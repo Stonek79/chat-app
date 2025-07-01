@@ -28,7 +28,7 @@ export const jwtAuthMiddleware = async (socket: AppServerSocket, next: (err?: Er
         return next(new Error('Ошибка конфигурации сервера: отсутствует секретный ключ JWT.'));
     }
 
-    const request = socket.request as any;
+    const request = socket.request;
     const cookieHeader = request.headers.cookie;
 
     if (!cookieHeader) {

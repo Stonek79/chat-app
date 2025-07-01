@@ -119,6 +119,7 @@ export async function POST(req: NextRequest) {
             email: user.email,
             username: user.username,
             role: user.role,
+            avatarUrl: user.avatarUrl,
         };
 
         const jwtSecret: jwt.Secret = process.env.JWT_SECRET as string;
@@ -145,6 +146,7 @@ export async function POST(req: NextRequest) {
                     username: user.username,
                     email: user.email,
                     role: user.role,
+                    avatarUrl: user.avatarUrl,
                 },
             },
             { status: 200 }

@@ -40,23 +40,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         clearAuthError();
         try {
             const response = await fetch(API_AUTH_ME_ROUTE, fetchOptions);
-            const data = await response.json();
 
-            if (response.ok && data.user) {
+            if (response.ok) {
+                const data = await response.json();
                 setUser(data.user);
             } else {
                 setUser(null);
-                if (data.message) {
-                    if (response.status !== 401) {
-                        setAuthError(data.message);
-                        toast.error(data.message);
-                    }
+
+                // Если ошибка не 401, а, например, 500, это проблема, которую стоит сообщить.
+                if (response.status !== 401) {
+                    const errorData = await response.json();
+                    const message =
+                        errorData?.message || 'Произошла ошибка на сервере. Попробуйте позже.';
+                    setAuthError(message);
+                    toast.error(message);
                 }
             }
         } catch (error) {
             console.error('Ошибка проверки статуса аутентификации:', error);
             setUser(null);
-            setAuthError('Не удалось проверить статус аутентификации. Проверьте соединение.');
+            // Эта ошибка, скорее всего, сетевая. Сообщаем пользователю.
+            setAuthError('Не удалось подключиться к серверу. Проверьте ваше соединение.');
+            toast.error('Не удалось подключиться к серверу. Проверьте ваше соединение.');
         } finally {
             setIsLoading(false);
         }

@@ -89,6 +89,7 @@ export const jwtPayloadSchema = z.object({
     email: z.string().email(),
     username: z.string(),
     role: userRoleSchema,
+    avatarUrl: z.string().url().nullable().optional(),
     iat: z.number(),
     exp: z.number(),
 });

@@ -81,8 +81,8 @@ export const getSocket = (token?: string | null, forceNew = false): AppSocket | 
         socketInstance.on('connect_error', error => {
             console.error(`[SocketIO] Connection error to ${socketNamespaceUrl}:`, error.message);
             // error.data может содержать дополнительные сведения от сервера
-            if ((error as any).data) {
-                console.error('[SocketIO] Connection error data:', (error as any).data);
+            if (error && typeof error === 'object' && 'data' in error) {
+                console.error('[SocketIO] Connection error data:', error.data);
             }
         });
 

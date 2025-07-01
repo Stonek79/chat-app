@@ -19,7 +19,7 @@ import type {
     ClientSendMessagePayload,
     SocketMessagePayload,
 } from '../chat';
-import type { MessageDeletedPayload } from '../message';
+import type { Message, MessageDeletedPayload } from '../message';
 import type { UserRole } from '../user';
 
 export { SocketIOClientDefault };
@@ -80,7 +80,7 @@ export interface ClientToServerEvents {
  * События, которые СЕРВЕР отправляет КЛИЕНТУ.
  */
 export interface ServerToClientEvents {
-    [SERVER_EVENT_RECEIVE_MESSAGE]: (payload: SocketMessagePayload) => void;
+    [SERVER_EVENT_RECEIVE_MESSAGE]: (payload: Message) => void;
     [SERVER_EVENT_USER_JOINED]: (payload: SocketUserPresencePayload) => void;
     [SERVER_EVENT_USER_LEFT]: (payload: SocketUserPresencePayload) => void;
     [SERVER_EVENT_CHAT_CREATED]: (chat: ClientChat) => void;

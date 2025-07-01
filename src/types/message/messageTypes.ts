@@ -1,12 +1,12 @@
-import { type MessageContentType,type MessageReadReceipt, Prisma } from '@prisma/client';
+import { type MessageContentType, type MessageReadReceipt, Prisma } from '@prisma/client';
 import { z } from 'zod';
 
 import type { displayMessageSchema } from '@/schemas';
 
 import type { Chat, PrismaChatParticipant } from '../chat';
-import type { BasicUser, User } from '../user';
+import type { User } from '../user';
 
-export { MessageContentType,MessageReadReceipt };
+export { MessageContentType, MessageReadReceipt };
 
 export type Message = Prisma.MessageGetPayload<{
     include: {

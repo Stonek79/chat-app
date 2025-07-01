@@ -3,7 +3,8 @@ import { z } from 'zod';
 
 import { validationMessages } from '@/constants';
 
-import { userRoleSchema } from './authSchemas';
+import { displayMessageSchema } from './messageSchemas';
+import { basicUserSchema } from './userSchemas';
 
 // Константы для валидации
 const CHAT_NAME_MAX_LENGTH = 100;
@@ -31,48 +32,9 @@ export const createPrivateChatSchema = z.object({
 });
 
 /**
- * @description Схема для валидации данных при отправке нового сообщения.
- */
-export const createMessageSchema = z.object({
-    content: z.string().min(1, { message: 'Сообщение не может быть пустым' }),
-    chatId: z.string().cuid(),
-});
-
-/**
- * @description Схема для валидации payload при отправке сообщения через сокет.
- * Включает опциональный временный ID для UI.
- */
-export const sendMessageSocketSchema = createMessageSchema.extend({
-    clientTempId: z.string().uuid(),
-    contentType: z.nativeEnum(MessageContentType).optional(),
-});
-
-/**
  * Схема для enum ChatParticipantRole из Prisma.
  */
 export const chatParticipantRoleSchema = z.nativeEnum(ChatParticipantRole);
-
-export const basicUserSchema = z.object({
-    id: z.string(),
-    username: z.string(),
-    email: z.string().email(),
-    role: userRoleSchema,
-    avatarUrl: z.string().url().nullable(),
-});
-
-/**
- * Схема для отображения сообщения на клиенте.
- * Включает вложенный объект отправителя.
- */
-export const displayMessageSchema = z.object({
-    id: z.string(),
-    content: z.string(),
-    createdAt: z.date(),
-    updatedAt: z.date().nullable(),
-    chatId: z.string(),
-    sender: basicUserSchema,
-    read: z.boolean().optional(),
-});
 
 export const clientChatParticipantSchema = basicUserSchema.extend({
     role: chatParticipantRoleSchema,

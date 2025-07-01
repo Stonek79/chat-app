@@ -23,6 +23,16 @@ export function handleApiError(error: unknown, options: ApiErrorOptions = {}): N
         );
     }
 
+    if (error instanceof ApiError) {
+        return NextResponse.json(
+            {
+                message: error.message,
+                errors: error.errors,
+            },
+            { status: error.status }
+        );
+    }
+
     if (error instanceof Error) {
         // PrismaClientKnownRequestError и другие специфичные ошибки Prisma наследуются от Error
         // Можно добавить более специфичную обработку для кодов ошибок Prisma, если это необходимо

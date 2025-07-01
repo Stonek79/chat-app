@@ -5,6 +5,7 @@ export const API_AUTH_ME_ROUTE = '/api/auth/me';
 export const API_AUTH_CONFIRM_ROUTE_PREFIX = '/api/auth/confirm';
 export const API_AUTH_USER_ROUTE = '/api/auth/user';
 export const API_CHATS_ROUTE = '/api/chats';
+export const API_MESSAGES_ROUTE = '/api/messages';
 
 export const IGNORED_API_PREFIXES = [
     API_AUTH_LOGIN_ROUTE,

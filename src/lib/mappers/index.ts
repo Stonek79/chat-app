@@ -1,1 +1,2 @@
-export * from './chatMappers';  
+export * from './chatMappers';
+export * from './messageMappers';

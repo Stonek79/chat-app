@@ -75,24 +75,19 @@ export async function GET(req: NextRequest) {
             throw new ApiError('Некорректный формат токена', 401);
         }
 
-        const { userId } = validationResult.data;
+        const { userId, username, email, role, avatarUrl, iat } = validationResult.data;
 
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-        });
-
-        if (!user) {
-            throw new ApiError('Пользователь из токена не найден в базе данных', 404);
-        }
-
+        // Для ускорения ответа и снижения нагрузки на БД,
+        // мы доверяем данным из валидированного токена.
+        // Запрос в БД остается при логине и обновлении профиля.
         const clientUser: ClientUser = {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            avatarUrl: user.avatarUrl,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt,
+            id: userId,
+            username,
+            email,
+            role,
+            avatarUrl: avatarUrl || null,
+            createdAt: new Date(iat * 1000), // Приблизительное значение из токена
+            updatedAt: new Date(iat * 1000), // Приблизительное значение из токена
         };
 
         const parsedUser = userResponseSchema.parse(clientUser);
