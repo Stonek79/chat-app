@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Chat {
+  id           String            @id @default(cuid())
+  name         String?           
+  isGroupChat  Boolean           @default(false)
+  avatarUrl    String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime
+  participants ChatParticipant[]
+  messages     Message[]
+
+  @@index([updatedAt])
+}
+
+model ChatParticipant {
+  id                  String             @id @default(cuid())
+  chatId              String
+  userId              String
+  joinedAt            DateTime            @default(now())
+  leftAt              DateTime?
+  role                ChatParticipantRole @default(MEMBER)
+  encryptedSessionKey String?
+  lastReadMessageId   String?
+  chat                Chat                @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([chatId])
+  @@index([userId])
+}
+
+model Message {
+  id                     String             @id @default(cuid())
+  chatId                 String
+  senderId               String
+  content                String
+  mediaUrl               String?
+  contentType            MessageContentType @default(TEXT)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime
+  deletedAt              DateTime?
+  isEdited               Boolean            @default(false)
+  status                 String             @default("sent")
+  replyToMessageId       String?
+  forwardedFromMessageId String?
+  userId                 String?
+
+  // Связи
+  chat          Chat                 @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender        User                 @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  user          User?                @relation("MessageUser", fields: [userId], references: [id])
+  replyTo       Message?             @relation("MessageReply", fields: [replyToMessageId], references: [id])
+  replies       Message[]            @relation("MessageReply")
+  forwardedFrom Message?             @relation("MessageForward", fields: [forwardedFromMessageId], references: [id])
+  forwarded     Message[]            @relation("MessageForward")
+  actions       MessageAction[]
+  readReceipts  MessageReadReceipt[]
+
+  @@index([chatId, createdAt])
+  @@index([replyToMessageId])
+  @@index([senderId])
+}
+
+model MessageAction {
+  id         String     @id @default(cuid())
+  createdAt  DateTime   @default(now())
+  messageId  String
+  actorId    String
+  type       ActionType
+  newContent String?
+  actor      User       @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  message    Message    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+}
+
+model SessionMessage {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  messageType String
+  payload     String
+  createdAt   DateTime @default(now())
+  receiver    User     @relation("SessionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender      User     @relation("SessionSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([messageType])
+  @@index([receiverId])
+  @@index([senderId])
+}
+
+model User {
+  id                       String    @id @default(cuid())
+  username                 String    @unique
+  email                    String    @unique
+  hashedPassword           String?
+  avatarUrl                String?
+  publicKey                String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime
+  lastSeenAt               DateTime?
+  isOnline                 Boolean   @default(false)
+  isVerified               Boolean   @default(false)
+  verificationToken        String?   @unique
+  verificationTokenExpires DateTime?
+  resetPasswordToken       String?   @unique
+  resetPasswordExpires     DateTime?
+  role                     UserRole  @default(USER)
+
+  // Связи
+  chatParticipant         ChatParticipant[]
+  sentMessages            Message[]            @relation("MessageSender")
+  userMessages            Message[]            @relation("MessageUser")
+  messageActions          MessageAction[]
+  messageReadReceipts     MessageReadReceipt[]
+  sentSessionMessages     SessionMessage[]     @relation("SessionSender")
+  receivedSessionMessages SessionMessage[]     @relation("SessionReceiver")
+}
+
+enum ActionType {
+  DELETED
+  EDITED
+}
+
+enum ChatParticipantRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum MessageContentType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  SYSTEM
+  URL
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}

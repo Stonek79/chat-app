@@ -1,77 +1,62 @@
-# Dockerfile
+# Dockerfile для Next.js приложения в монорепозитории
 
-# Этап 1: Сборка приложения
-FROM node:20-alpine AS builder
-
-# Устанавливаем рабочую директорию
+# Этап 1: Установка зависимостей
+FROM node:20-alpine AS deps
 WORKDIR /app
 
-# Копируем package.json и lock-файлы (package-lock.json, yarn.lock, или pnpm-lock.yaml)
-# Копируем все варианты, чтобы Dockerfile был более универсальным
-COPY package.json ./
-COPY package-lock.json* ./
-# COPY yarn.lock ./
-# COPY pnpm-lock.yaml ./
+# Копируем package.json файлы для установки зависимостей
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/*/package.json ./packages/
+COPY apps/*/package.json ./apps/
 
-# Устанавливаем ВСЕ зависимости, так как они могут быть нужны для сборки (например, typescript, @types/*)
-# Используем npm ci для более быстрых и надежных сборок, если есть package-lock.json
-RUN if [ -f package-lock.json ]; then npm ci; \
-    # elif [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-    # elif [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; \
-    else npm install; fi
+# Устанавливаем pnpm и зависимости
+RUN npm install -g pnpm@latest
+RUN pnpm install --frozen-lockfile
 
-# Копируем остальные файлы проекта
-# Убедитесь, что .dockerignore настроен правильно, чтобы не копировать лишнее (например, .git, node_modules локальные)
+# Этап 2: Сборка пакетов и приложения
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Копируем зависимости из предыдущего этапа
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./package.json
+COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=deps /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+
+# Копируем весь исходный код
 COPY . .
 
-# Собираем приложение Next.js
-# Переменные окружения времени сборки (если нужны, например, для NEXT_PUBLIC_*)
-# Пример: 
-# ARG NEXT_PUBLIC_API_URL
-# ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-RUN npm run build
+# Устанавливаем pnpm
+RUN npm install -g pnpm@latest
 
-# Этап 2: Запуск приложения
-FROM node:20-alpine AS runner 
-# Даем имя финальному этапу для ясности
+# Собираем все пакеты
+RUN pnpm build:packages
 
+# Собираем Next.js приложение
+RUN pnpm --filter @chat-app/chat build
+
+# Этап 3: Production образ
+FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Устанавливаем переменные окружения
 ENV NODE_ENV=production
-# Порт, на котором будет работать приложение Next.js (будет переопределен из docker-compose, если нужно)
-ENV PORT=3000 
-# NEXT_PUBLIC_SOCKET_URL и NEXT_PUBLIC_SOCKET_NAMESPACE будут переданы через docker-compose
+ENV PORT=3000
 
-# Копируем package.json и lock-файл для установки ТОЛЬКО production-зависимостей
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/package-lock.json* ./
-# COPY --from=builder /app/yarn.lock ./
-# COPY --from=builder /app/pnpm-lock.yaml ./
+# Создаем пользователя nextjs
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# Устанавливаем только production-зависимости
-RUN if [ -f package-lock.json ]; then npm ci --omit=dev; \
-    # elif [ -f yarn.lock ]; then yarn install --production --frozen-lockfile; \
-    # elif [ -f pnpm-lock.yaml ]; then pnpm install --prod --frozen-lockfile; \
-    else npm install --omit=dev; fi
+# Копируем необходимые файлы для Next.js standalone
+COPY --from=builder /app/apps/chat/.next/standalone ./
+COPY --from=builder /app/apps/chat/.next/static ./apps/chat/.next/static
+COPY --from=builder /app/apps/chat/public ./apps/chat/public
 
-# Копируем собранное приложение из этапа сборки
-# Если вы НЕ используете output: 'standalone' в next.config.mjs:
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.mjs ./
-# node_modules уже будут установлены выше только для production
+# Меняем владельца файлов
+USER nextjs
 
-# Если вы ИСПОЛЬЗУЕТЕ output: 'standalone' в next.config.mjs, 
-# то секция копирования выше (для .next, public, next.config.mjs) должна быть закомментирована,
-# а эта секция раскомментирована:
-# COPY --from=builder /app/.next/standalone ./ 
-# COPY --from=builder /app/.next/static ./.next/static # Копируем статические ассеты для standalone
-# COPY --from=builder /app/public ./public # Public папка также может быть нужна
-
-# Открываем порт (тот же, что и ENV PORT)
 EXPOSE 3000
 
-# Команда для запуска приложения
-# Если output: 'standalone', команда может быть CMD ["node", "server.js"]
-CMD ["npm", "start"] 
+ENV HOSTNAME="0.0.0.0"
+
+# Запускаем приложение
+CMD ["node", "apps/chat/server.js"] 

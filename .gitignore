@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Generated
+dist
+.turbo
+node_modules
+packages/shared/src/generated/

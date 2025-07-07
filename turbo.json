@@ -1,0 +1,43 @@
+{
+    "$schema": "https://turbo.build/schema.json",
+    "globalDependencies": ["**/.env.*"],
+    "tasks": {
+        "build": {
+            "dependsOn": ["^build"],
+            "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+            "outputLogs": "new-only"
+        },
+        "dev": {
+            "cache": false,
+            "persistent": true,
+            "dependsOn": ["^build"]
+        },
+        "lint": {
+            "dependsOn": ["^build"],
+            "outputLogs": "new-only"
+        },
+        "typecheck": {
+            "dependsOn": ["^build"],
+            "outputLogs": "new-only"
+        },
+        "clean": {
+            "cache": false
+        },
+        "db:generate": {
+            "cache": false,
+            "dependsOn": ["^build"]
+        },
+        "db:push": {
+            "cache": false,
+            "dependsOn": ["db:generate"]
+        },
+        "db:studio": {
+            "cache": false,
+            "persistent": true
+        },
+        "build:edge-constants": {
+            "cache": false,
+            "outputs": ["../constants-edge/**"]
+        }
+    }
+}

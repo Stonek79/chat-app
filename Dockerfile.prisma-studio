@@ -1,0 +1,26 @@
+# Dockerfile для Prisma Studio
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Устанавливаем pnpm глобально
+RUN npm install -g pnpm@latest
+
+# Копируем package.json файлы
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/db/package.json ./packages/db/
+
+# Устанавливаем зависимости
+RUN pnpm install --frozen-lockfile
+
+# Копируем схему Prisma
+COPY packages/db/src/prisma ./packages/db/src/prisma
+
+# Генерируем Prisma Client
+RUN pnpm --filter @chat-app/db prisma:generate
+
+EXPOSE 5555
+
+# Запускаем Prisma Studio
+CMD ["pnpm", "--filter", "@chat-app/db", "prisma:studio", "--hostname", "0.0.0.0"] 

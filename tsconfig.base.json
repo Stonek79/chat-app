@@ -1,0 +1,39 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "lib": ["DOM", "ESNext"],
+        "moduleResolution": "bundler",
+        "strict": true,
+        "noImplicitAny": true,
+        "noUncheckedIndexedAccess": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        "jsx": "preserve",
+        "plugins": [
+            {
+                "name": "next"
+            }
+        ],
+        "baseUrl": ".",
+        "paths": {
+            "@chat-app/core": ["./packages/core/src"],
+            "@chat-app/core/*": ["./packages/core/src/*"],
+            "@chat-app/db": ["./packages/db/src"],
+            "@chat-app/db/*": ["./packages/db/src/*"],
+            "@chat-app/server-shared": ["./packages/server-shared/src"],
+            "@chat-app/server-shared/*": ["./packages/server-shared/src/*"],
+            "@chat-app/socket-shared": ["./packages/socket-shared/src"],
+            "@chat-app/socket-shared/*": ["./packages/socket-shared/src/*"],
+            "@/*": ["./apps/chat/src/*"]
+        }
+    },
+    "exclude": ["node_modules", "dist", ".next"]
+}

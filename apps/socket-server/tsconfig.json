@@ -1,0 +1,24 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "module": "CommonJS",
+        "moduleResolution": "Node",
+        "outDir": "dist",
+        "noEmit": false,
+        "isolatedModules": false,
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "paths": {
+            "@chat-app/core": ["../../packages/core/src"],
+            "@chat-app/core/*": ["../../packages/core/src/*"],
+            "@chat-app/db": ["../../packages/db/dist"],
+            "@chat-app/db/*": ["../../packages/db/dist/*"],
+            "@chat-app/socket-shared": ["../../packages/socket-shared/dist"],
+            "@chat-app/socket-shared/*": ["../../packages/socket-shared/dist/*"],
+            "@chat-app/server-shared": ["../../packages/server-shared/dist"],
+            "@chat-app/server-shared/*": ["../../packages/server-shared/dist/*"]
+        }
+    },
+    "include": ["src/**/*.ts"],
+    "exclude": ["node_modules", "dist"]
+}

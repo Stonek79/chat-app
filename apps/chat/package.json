@@ -1,0 +1,71 @@
+{
+    "name": "@chat-app/chat",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "dotenvx run --env-file=../../.env next dev",
+        "build": "dotenvx run --env-file=../../.env next build",
+        "start": "next start",
+        "lint": "next lint --no-cache",
+        "typecheck": "tsc --noEmit",
+        "clean": "rm -rf .next dist"
+    },
+    "dependencies": {
+        "@chat-app/core": "workspace:*",
+        "@chat-app/db": "workspace:*",
+        "@chat-app/socket-shared": "workspace:*",
+        "@emotion/react": "^11.14.0",
+        "@emotion/styled": "^11.14.0",
+        "@fontsource/roboto": "^5.2.5",
+        "@hookform/resolvers": "^5.1.1",
+        "@mui/icons-material": "^7.1.0",
+        "@mui/joy": "^5.0.0-beta.52",
+        "@mui/material": "^7.1.0",
+        "@mui/material-nextjs": "^7.1.0",
+        "@next/eslint-plugin-next": "^15.3.3",
+        "bcryptjs": "^3.0.2",
+        "cookie": "^1.0.2",
+        "date-fns": "^4.1.0",
+        "jose": "^6.0.11",
+        "jsonwebtoken": "^9.0.2",
+        "next": "15.3.2",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "react-error-boundary": "^6.0.0",
+        "react-hook-form": "^7.60.0",
+        "react-hot-toast": "^2.5.2",
+        "zod": "^3.25.7"
+    },
+    "devDependencies": {
+        "@eslint/eslintrc": "^3",
+        "@types/jsonwebtoken": "^9.0.9",
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "eslint": "^9",
+        "eslint-config-next": "15.3.2",
+        "eslint-config-prettier": "^10.1.5",
+        "eslint-plugin-import": "^2.31.0",
+        "eslint-plugin-simple-import-sort": "^12.1.1",
+        "husky": "^9.0.11",
+        "lint-staged": "^15.2.7",
+        "prettier": "^3.3.2",
+        "ts-node": "^10.9.2",
+        "tsx": "^4.19.4",
+        "typescript": "^5"
+    },
+    "lint-staged": {
+        "*.{js,jsx,ts,tsx}": [
+            "eslint --fix",
+            "prettier --write"
+        ],
+        "*.{json,md,yaml,yml}": [
+            "prettier --write"
+        ]
+    },
+    "optionalDependencies": {
+        "bufferutil": "^4.0.9",
+        "utf-8-validate": "^6.0.5"
+    }
+}

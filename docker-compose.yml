@@ -1,121 +1,139 @@
 version: '3.9'
 
 services:
-  #---------------------------------------------------------------------------
-  # Next.js Frontend Приложение
-  #---------------------------------------------------------------------------
-  next-app:
-    container_name: next_app_chat
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "${NEXT_APP_PORT:-3000}:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
-    environment:
-      NODE_ENV: development
-      PORT: 3000
-      NEXT_PUBLIC_SOCKET_URL: http://localhost:${SOCKET_SERVER_PORT:-3001}
-      NEXT_PUBLIC_SOCKET_NAMESPACE: ${SOCKET_NAMESPACE:-/chat}
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      JWT_SECRET: ${JWT_SECRET}
-      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      socket-server:
-        condition: service_started
-    networks:
-      - app-network
-    restart: unless-stopped
+    #---------------------------------------------------------------------------
+    # Next.js Frontend Приложение
+    #---------------------------------------------------------------------------
+    next-app:
+        container_name: next_app_chat
+        build:
+            context: .
+            dockerfile: Dockerfile
+        ports:
+            - '${NEXT_APP_PORT:-3000}:3000'
+        environment:
+            NODE_ENV: development
+            PORT: 3000
+            NEXT_PUBLIC_SOCKET_URL: http://localhost:${SOCKET_SERVER_PORT:-3001}
+            NEXT_PUBLIC_SOCKET_NAMESPACE: ${SOCKET_NAMESPACE:-/chat}
+            # Клиентские переменные (безопасные)
+            DATABASE_URL: ${DATABASE_URL}
+            # Серверные конфигурации будут через server-shared
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            socket-server:
+                condition: service_started
+        networks:
+            - app-network
+        restart: unless-stopped
 
-  #---------------------------------------------------------------------------
-  # Выделенный Socket.IO Сервер
-  #---------------------------------------------------------------------------
-  socket-server:
-    container_name: socket_server_chat
-    build:
-      context: ./socket-server
-      dockerfile: Dockerfile
-    ports:
-      - "${SOCKET_SERVER_PORT:-3001}:3001"
-    environment:
-      NODE_ENV: development
-      SOCKET_PORT: 3001
-      SOCKET_CORS_ORIGIN: http://localhost:${NEXT_APP_PORT:-3000}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      JWT_SECRET: ${JWT_SECRET}
-      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME}
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - app-network
-    restart: unless-stopped
-    volumes:
-      - ./socket-server:/app
-      - /app/node_modules
-      - /app/dist
+    #---------------------------------------------------------------------------
+    # Выделенный Socket.IO Сервер
+    #---------------------------------------------------------------------------
+    socket-server:
+        container_name: socket_server_chat
+        build:
+            context: .
+            dockerfile: apps/socket-server/Dockerfile
+        ports:
+            - '${SOCKET_SERVER_PORT:-3001}:3001'
+        environment:
+            NODE_ENV: development
+            SOCKET_PORT: 3001
+            SOCKET_CORS_ORIGIN: http://localhost:${NEXT_APP_PORT:-3000}
+            # Серверные переменные через server-shared
+            DATABASE_URL: ${DATABASE_URL}
+            JWT_SECRET: ${JWT_SECRET}
+            REDIS_HOST: ${REDIS_HOST:-redis}
+            REDIS_PORT: ${REDIS_PORT:-6379}
+            REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+            REDIS_SOCKET_NOTIFICATIONS_CHANNEL: socket-notifications
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        networks:
+            - app-network
+        restart: unless-stopped
 
-  #---------------------------------------------------------------------------
-  # PostgreSQL База Данных
-  #---------------------------------------------------------------------------
-  postgres:
-    container_name: postgres_db_chat
-    image: postgres:15-alpine
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-chat_app_db}
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-chat_app_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+    #---------------------------------------------------------------------------
+    # PostgreSQL База Данных
+    #---------------------------------------------------------------------------
+    postgres:
+        container_name: postgres_db_chat
+        image: postgres:16-alpine
+        ports:
+            - '${POSTGRES_PORT:-5432}:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+            - ./packages/db/src/prisma/migrations:/docker-entrypoint-initdb.d
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-user}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+            POSTGRES_DB: ${POSTGRES_DB:-chat_app_db}
+        networks:
+            - app-network
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U user -d chat_app_db']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        restart: unless-stopped
 
-  #---------------------------------------------------------------------------
-  # Redis Сервис (для кэширования, Pub/Sub для Socket.IO и т.д.)
-  #---------------------------------------------------------------------------
-  redis:
-    container_name: redis_cache_chat
-    image: redis:7-alpine
-    ports:
-      - "${REDIS_EXT_PORT:-6379}:6379"
-    command: redis-server --save 60 1 --loglevel warning
-    volumes:
-      - redis_data:/data
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+    #---------------------------------------------------------------------------
+    # Redis Сервис (для кэширования, Pub/Sub для Socket.IO и т.д.)
+    #---------------------------------------------------------------------------
+    redis:
+        container_name: redis_cache_chat
+        image: redis:7-alpine
+        ports:
+            - '${REDIS_EXT_PORT:-6379}:6379'
+        command: redis-server --save 60 1 --loglevel warning ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+        volumes:
+            - redis_data:/data
+        networks:
+            - app-network
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        restart: unless-stopped
+
+    #---------------------------------------------------------------------------
+    # Prisma Studio (опционально, для разработки)
+    #---------------------------------------------------------------------------
+    prisma-studio:
+        container_name: prisma_studio_chat
+        build:
+            context: .
+            dockerfile: Dockerfile.prisma-studio
+        ports:
+            - '5555:5555'
+        environment:
+            DATABASE_URL: ${DATABASE_URL}
+        depends_on:
+            postgres:
+                condition: service_healthy
+        networks:
+            - app-network
+        profiles:
+            - dev
+        restart: unless-stopped
 
 #---------------------------------------------------------------------------
 # Сети и Volumes
 #---------------------------------------------------------------------------
 networks:
-  app-network:
-    driver: bridge
+    app-network:
+        driver: bridge
 
 volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local 
+    postgres_data:
+        driver: local
+    redis_data:
+        driver: local
