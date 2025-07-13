@@ -1,71 +1,68 @@
-import Redis from 'ioredis';
+import Redis, { Redis as RedisClientType } from 'ioredis';
+import { getServerConfig } from '../config';
 
-export interface RedisClientConfig {
-    host: string;
-    port: number;
-    password?: string;
-    tls?: object;
-    maxRetriesPerRequest?: number | null;
+let mainClient: RedisClientType | null = null;
+let subClientInstance: RedisClientType | null = null;
+let notificationSubscriberInstance: RedisClientType | null = null;
+
+function createClient(): RedisClientType {
+    console.log('Creating new Redis client...');
+    const config = getServerConfig();
+    const client = new Redis({
+        host: config.REDIS_HOST,
+        port: config.REDIS_PORT,
+        password: config.REDIS_PASSWORD,
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: true,
+    });
+
+    client.on('error', err => console.error('Redis Client Error', err.message));
+    client.on('connect', () => console.log('Redis client connected.'));
+    client.on('ready', () => console.log('Redis client is ready.'));
+    client.on('reconnecting', () => console.log('Redis client is reconnecting...'));
+    return client;
 }
 
-export interface RedisClients {
-    pubClient: Redis;
-    subClient: Redis;
-    notificationSubscriber: Redis;
-}
-
-export function createRedisClients(config: RedisClientConfig): RedisClients {
-    const redisOptions = {
-        host: config.host,
-        port: config.port,
-        password: config.password,
-        // Простое включение TLS, если хост не localhost
-        tls: config.host !== 'localhost' ? {} : undefined,
-        // Позволяет избежать падения сервера при недоступности Redis при старте
-        maxRetriesPerRequest: config.maxRetriesPerRequest ?? null,
-    };
-
-    // Клиент для публикации (и для общих команд)
-    const pubClient = new Redis(redisOptions);
-
-    // Клиент для подписки
-    const subClient = pubClient.duplicate();
-
-    // Отдельный клиент для подписки на уведомления от бэкенда
-    const notificationSubscriber = pubClient.duplicate();
-
-    // Настройка логирования
-    pubClient.on('connect', () => console.log('[Redis] PubClient connected.'));
-    pubClient.on('error', (err: Error) => console.error('[Redis] PubClient Error:', err));
-
-    subClient.on('connect', () => console.log('[Redis] SubClient connected.'));
-    subClient.on('error', (err: Error) => console.error('[Redis] SubClient Error:', err));
-
-    notificationSubscriber.on('connect', () =>
-        console.log('[Redis] NotificationSubClient connected.')
-    );
-    notificationSubscriber.on('error', (err: Error) =>
-        console.error('[Redis] NotificationSubClient Error:', err)
-    );
-
-    return {
-        pubClient,
-        subClient,
-        notificationSubscriber,
-    };
-}
-
-// Singleton клиенты
-let redisClients: RedisClients | null = null;
-
-export function getDefaultRedisClients(): RedisClients {
-    if (!redisClients) {
-        const config = {
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT || '6379'),
-            password: process.env.REDIS_PASSWORD,
-        };
-        redisClients = createRedisClients(config);
+export const getRedisClient = (): RedisClientType => {
+    if (!mainClient) {
+        mainClient = createClient();
     }
-    return redisClients;
-}
+    return mainClient;
+};
+
+export const getSubClient = (): RedisClientType => {
+    if (!subClientInstance) {
+        subClientInstance = getRedisClient().duplicate();
+        subClientInstance.on('connect', () => console.log('[Redis] SubClient connected.'));
+        subClientInstance.on('error', (err: Error) =>
+            console.error('[Redis] SubClient Error:', err)
+        );
+    }
+    return subClientInstance;
+};
+
+export const getNotificationSubscriber = (): RedisClientType => {
+    if (!notificationSubscriberInstance) {
+        notificationSubscriberInstance = getRedisClient().duplicate();
+        notificationSubscriberInstance.on('connect', () =>
+            console.log('[Redis] NotificationSubClient connected.')
+        );
+        notificationSubscriberInstance.on('error', (err: Error) =>
+            console.error('[Redis] NotificationSubClient Error:', err)
+        );
+    }
+    return notificationSubscriberInstance;
+};
+
+export const disconnectRedis = async (): Promise<void> => {
+    const clients = [mainClient, subClientInstance, notificationSubscriberInstance];
+    for (const client of clients) {
+        if (client && client.status !== 'end') {
+            await client.quit();
+        }
+    }
+    mainClient = null;
+    subClientInstance = null;
+    notificationSubscriberInstance = null;
+    console.log('All Redis clients disconnected.');
+};

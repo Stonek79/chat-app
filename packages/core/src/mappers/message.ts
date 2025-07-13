@@ -29,8 +29,7 @@ export function toDisplayMessage(
           }
         : undefined;
 
-    const isCurrentUser =
-        prismaMessage.senderId === currentUserId || prismaMessage.sender.role === UserRole.ADMIN;
+    const isCurrentUser = prismaMessage.senderId === currentUserId;
 
     return {
         ...prismaMessage,

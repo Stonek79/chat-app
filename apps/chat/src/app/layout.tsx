@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 
 import { AuthProvider } from '@/providers';
+import { ThemeRegistry } from '@/components';
 
 import './globals.css';
 
@@ -27,10 +28,12 @@ export default function RootLayout({ children }: Readonly<RootLayoutProps>) {
     return (
         <html lang="ru">
             <body className={inter.className}>
-                <AuthProvider>
-                    <Toaster position="top-center" reverseOrder={false} />
-                    <main className="h-screen">{children}</main>
-                </AuthProvider>
+                <ThemeRegistry>
+                    <AuthProvider>
+                        <Toaster position="top-center" reverseOrder={false} />
+                        <main className="h-screen">{children}</main>
+                    </AuthProvider>
+                </ThemeRegistry>
             </body>
         </html>
     );

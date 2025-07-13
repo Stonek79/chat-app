@@ -1,0 +1,53 @@
+version: '3.9'
+
+# Этот файл дополняет docker-compose.yml настройками для локальной разработки.
+# Он не используется в продакшене.
+
+services:
+    next-app:
+        # Указываем Docker собирать образ до стадии 'builder', а не 'runner'.
+        # 'builder' содержит все dev-зависимости, нужные для hot-reload.
+        build:
+            target: builder
+        # Команда для запуска сервера в режиме разработки.
+        command: pnpm --filter @chat-app/chat run dev
+        volumes:
+            # Синхронизируем исходный код Next.js приложения.
+            - ./apps/chat:/app/apps/chat
+            # Синхронизируем все общие пакеты.
+            - ./packages:/app/packages
+            # Этот "анонимный том" - трюк, чтобы локальная папка node_modules (которой нет)
+            # не затирала папку node_modules, установленную внутри контейнера.
+            - /app/node_modules
+        # Указываем файл с переменными окружения для разработки.
+        env_file:
+            - .env.docker
+
+    socket-server:
+        build:
+            target: builder
+        # Запускаем сервер с помощью nodemon для автоматической перезагрузки при изменениях.
+        command: pnpm --filter @chat-app/socket-server run dev
+        volumes:
+            # Синхронизируем исходный код сокет-сервера.
+            - ./apps/socket-server:/app/apps/socket-server
+            # Синхронизируем все общие пакеты.
+            - ./packages:/app/packages
+            - /app/node_modules
+        env_file:
+            - .env.docker
+
+    nginx: {}
+        # Для разработки можно проксировать запросы напрямую на Next.js dev server,
+        # но текущая конфигурация с прокси на MinIO тоже подходит.
+        # Оставляем без изменений, но если бы была отдельная nginx.dev.conf,
+        # мы бы переопределили её здесь.
+        # volumes:
+        # - ./config/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+        # pass
+
+    # Сервисы postgres, redis, minio остаются без изменений из основного файла.
+    # postgres: {}
+    redis: {}
+    minio: {}
+    prisma-studio: {}

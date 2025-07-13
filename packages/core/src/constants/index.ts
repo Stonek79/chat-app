@@ -6,3 +6,4 @@ export * from './redis'; // Redis события (только для серве
 export * from './app'; // UI константы (цвета, форматы, статусы)
 export * from './validation'; // Сообщения валидации и коды ошибок
 export * from './client'; // Клиентские роуты и Socket события
+export * from './theme'; // Экспортируем новые константы

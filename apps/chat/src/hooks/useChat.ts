@@ -15,29 +15,49 @@ export interface UseChatReturn {
     chatDetails: ChatWithDetails | null;
     isLoadingChatDetails: boolean;
     initialMessagesLoaded: boolean;
+    hasMoreMessages: boolean;
+    loadMoreMessages: () => Promise<void>;
+    isLoadingMore: boolean;
     markMessagesAsRead: (lastReadMessageId: string) => void;
     deleteMessage: (messageId: string) => Promise<void>;
+    firstUnreadId: string | null;
 }
 
 export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn => {
     const { user } = useAuth();
 
-    // Всегда вызываем хуки в одинаковом порядке
+    if (!user) {
+        throw new Error('User is not authenticated');
+    }
+
     const { socket, isConnected } = useChatSocket(chatId);
 
-    // Передаем пустую строку как fallback для currentUserId, хуки обработают это корректно
+    const { sendMessage, deleteMessage, markMessagesAsRead } = useChatActions({
+        socket,
+        chatId,
+        currentUserId: user?.id || '',
+    });
+
     const {
         messages,
         participants,
         chatDetails,
         isLoadingChatDetails,
         initialMessagesLoaded,
+        hasMoreMessages,
+        loadMoreMessages,
+        isLoadingMore,
         setMessages,
         setParticipants,
         setChatDetails,
         setIsLoadingChatDetails,
         setInitialMessagesLoaded,
-    } = useChatData({ chatId, socket, currentUserId: user?.id || '' });
+        firstUnreadId,
+    } = useChatData({
+        chatId,
+        socket,
+        currentUserId: user!.id,
+    });
 
     // Обработка сокет-событий
     useChatEventHandlers({
@@ -52,28 +72,6 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
         setInitialMessagesLoaded,
     });
 
-    // Действия пользователя
-    const { sendMessage, deleteMessage, markMessagesAsRead } = useChatActions({
-        socket,
-        chatId,
-        currentUserId: user?.id || '',
-    });
-
-    // Возвращаем пустое состояние, если пользователь не авторизован
-    if (!user?.id) {
-        return {
-            messages: [],
-            participants: [],
-            sendMessage: () => {},
-            isConnected: false,
-            chatDetails: null,
-            isLoadingChatDetails: false,
-            initialMessagesLoaded: false,
-            markMessagesAsRead: () => {},
-            deleteMessage: async () => {},
-        };
-    }
-
     return {
         messages,
         participants,
@@ -82,7 +80,11 @@ export const useChat = ({ chatId }: { chatId: string | null }): UseChatReturn =>
         chatDetails,
         isLoadingChatDetails,
         initialMessagesLoaded,
+        hasMoreMessages,
+        loadMoreMessages,
+        isLoadingMore,
         markMessagesAsRead,
         deleteMessage,
+        firstUnreadId,
     };
 };

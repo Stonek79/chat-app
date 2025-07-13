@@ -1,14 +1,16 @@
 'use client';
 
-import { ReactNode } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import type { AuthenticatedUser } from '@chat-app/core';
 import { CHAT_PAGE_ROUTE } from '@chat-app/core';
-import { AuthenticatedUser, ChatWithDetails } from '@chat-app/core';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
-
-import { ChatListSection } from './sidebar/ChatListSection';
-import { LogoutButtonSection } from './sidebar/LogoutButtonSection';
+import { IconButton, InputBase } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import { useTheme } from '@/providers';
+import { ChatList } from '@/components';
+import SearchIcon from '@mui/icons-material/Search';
+import useChatStore from '@/store/chatStore';
 import { UserProfilePanel } from './sidebar/UserProfilePanel';
 
 const getChatIdFromPathname = (currentPathname: string): string | null => {
@@ -32,14 +34,16 @@ const getChatIdFromPathname = (currentPathname: string): string | null => {
 
 interface SidebarProps {
     currentUser: AuthenticatedUser;
-    chats: ChatWithDetails[];
-    children?: ReactNode;
+    isMobile: boolean;
+    onChatSelect: (chatId: string) => void;
 }
 
-export function Sidebar({ currentUser, chats, children }: SidebarProps) {
+export function Sidebar({ currentUser, isMobile, onChatSelect }: SidebarProps) {
     const displayUser = currentUser;
     const router = useRouter();
     const pathname = usePathname();
+    const { chats } = useChatStore();
+    const { mode, toggleTheme } = useTheme();
 
     // ID активного чата теперь просто вычисляется из URL.
     // Больше нет необходимости в useState и useEffect для синхронизации.
@@ -51,61 +55,54 @@ export function Sidebar({ currentUser, chats, children }: SidebarProps) {
         router.push(`${CHAT_PAGE_ROUTE}/${chatId}`);
     };
 
-    // TODO: Реализовать модальные окна для создания каналов/ЛС
-    const handleAddChannel = () => console.log('Add channel clicked');
-    const handleAddDirectMessage = () => console.log('Add direct message clicked');
-
-    const groupChannels = chats.filter(chat => chat.isGroupChat);
-    const directMessages = chats.filter(chat => !chat.isGroupChat);
+    // TODO: Реализовать модальное окно для создания
+    const handleAddChat = () => console.log('Add chat clicked');
 
     return (
-        <Box sx={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
-            <Paper
-                elevation={3}
-                sx={{
-                    width: { xs: '100%', sm: 260, md: 280 },
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    borderRight: '1px solid',
-                    borderColor: 'divider',
-                    p: 0,
-                }}
-            >
-                <UserProfilePanel user={displayUser} />
-
-                <Box width="100%" height="100%">
-                    <ChatListSection
-                        title="КАНАЛЫ"
-                        chats={groupChannels}
-                        selectedChatId={selectedChatId}
-                        onChatSelect={handleChatSelect}
-                        onAddChat={handleAddChannel}
-                        addChatButtonText="Добавить канал"
-                    />
-
-                    <ChatListSection
-                        title="ЛИЧНЫЕ СООБЩЕНИЯ"
-                        chats={directMessages}
-                        selectedChatId={selectedChatId}
-                        onChatSelect={handleChatSelect}
-                        onAddChat={handleAddDirectMessage}
-                        addChatButtonText="Начать переписку"
-                    />
-                </Box>
-                <LogoutButtonSection />
-            </Paper>
+        <Paper
+            elevation={0}
+            component="aside"
+            sx={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                p: 0,
+                flexShrink: 0,
+                backgroundColor: 'background.paper',
+            }}
+        >
             <Box
                 sx={{
-                    flexGrow: 1,
+                    p: 1,
                     display: 'flex',
-                    flexDirection: 'column',
-                    height: '100%',
-                    overflow: 'auto',
+                    alignItems: 'center',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
                 }}
             >
-                {children}
+                <IconButton>
+                    <MenuIcon />
+                </IconButton>
+                <Box
+                    sx={{
+                        ml: 2,
+                        flex: 1,
+                        backgroundColor: 'background.default',
+                        borderRadius: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        p: '2px 8px',
+                    }}
+                >
+                    <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />
+                    <InputBase fullWidth placeholder="Search" sx={{ color: 'text.primary' }} />
+                </Box>
             </Box>
-        </Box>
+            <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                <ChatList chats={chats} activeChatId={selectedChatId} onChatSelect={onChatSelect} />
+            </Box>
+            <UserProfilePanel user={displayUser} />
+        </Paper>
     );
 }

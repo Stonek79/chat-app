@@ -1,10 +1,5 @@
 import { z } from 'zod';
-import type {
-    ClientUser,
-    UpdateUserPayload,
-    LoginCredentials,
-    RegisterCredentials,
-} from './user';
+import type { ClientUser, UpdateUserPayload, LoginCredentials, RegisterCredentials } from './user';
 import {
     authStateSchema,
     sessionDataSchema,
@@ -30,6 +25,7 @@ export type RefreshTokenResponse = z.infer<typeof refreshTokenResponseSchema>;
 export interface AuthContextType {
     user: ClientUser | null;
     isLoading: boolean;
+    mutate: () => Promise<void>;
     authError: string | { [key: string]: string[] } | null;
     setAuthError: (error: string | null) => void;
     login: (credentials: LoginCredentials, returnTo?: string) => Promise<ClientUser | null>;

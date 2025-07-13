@@ -60,9 +60,26 @@ const dtsContent = [
     '',
 ].join('\n');
 
+// Генерируем package.json
+const packageJsonContent = {
+    name: '@chat-app/constants-edge',
+    version: '1.0.0',
+    private: true,
+    type: 'module',
+    main: './index.js',
+    types: './index.d.ts',
+    exports: {
+        '.': {
+            types: './index.d.ts',
+            import: './index.js',
+        },
+    },
+};
+
 // Записываем файлы в packages/constants-edge
 writeFileSync(join(OUTPUT_DIR, 'index.js'), jsContent);
 writeFileSync(join(OUTPUT_DIR, 'index.d.ts'), dtsContent);
+writeFileSync(join(OUTPUT_DIR, 'package.json'), JSON.stringify(packageJsonContent, null, 4));
 
 console.log('✅ Generated Edge constants');
 console.log(`📦 Output: ${OUTPUT_DIR}`);

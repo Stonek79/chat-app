@@ -176,6 +176,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     };
 
+    const mutate = useCallback(async () => {
+        await checkAuthStatus();
+    }, [checkAuthStatus]);
+
     const value = useMemo(
         () => ({
             user,
@@ -188,6 +192,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             checkAuthStatus,
             updateUser,
             clearAuthError,
+            mutate,
         }),
         [
             user,
@@ -200,6 +205,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             checkAuthStatus,
             updateUser,
             clearAuthError,
+            mutate,
         ]
     );
 

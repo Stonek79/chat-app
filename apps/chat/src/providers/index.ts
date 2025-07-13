@@ -1,1 +1,2 @@
-export { AuthProvider } from './AuthProvider';
+export * from './AuthProvider';
+export * from './CustomThemeProvider';

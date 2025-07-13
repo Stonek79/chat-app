@@ -1,7 +1,5 @@
 import { redirect } from 'next/navigation';
 import { LOGIN_PAGE_ROUTE } from '@chat-app/core';
-import { UserRole } from '@chat-app/db';
-
 import { ChatContent } from '@/components';
 import { getCurrentUserFromSessionCookie } from '@/lib';
 
@@ -24,7 +22,5 @@ export default async function ChatPage({ params }: ChatPageProps) {
         redirect(LOGIN_PAGE_ROUTE);
     }
 
-    const isAdmin = currentUser.role === UserRole.ADMIN;
-
-    return <ChatContent chatId={chatId} currentUserId={currentUser.id} isAdmin={isAdmin} />;
+    return <ChatContent chatId={chatId} />;
 }

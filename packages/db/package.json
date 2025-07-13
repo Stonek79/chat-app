@@ -16,10 +16,10 @@
     },
     "scripts": {
         "build": "prisma generate && tsup src/index.ts --format cjs,esm --dts",
-        "dev": "dotenvx run --env-file=../../.env tsup src/index.ts --format cjs,esm --dts --watch",
+        "dev": "dotenvx run --env-file=../../.env.local tsup src/index.ts --format cjs,esm --dts --watch",
         "generate": "prisma generate",
         "migrate:dev": "prisma migrate dev",
-        "studio": "dotenvx run --env-file=../../.env prisma studio",
+        "studio": "dotenvx run --env-file=../../.env.local prisma studio",
         "validate": "prisma validate",
         "seed": "tsx src/prisma/seed.ts",
         "lint": "eslint .",

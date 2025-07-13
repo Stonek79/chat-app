@@ -2,21 +2,22 @@
 // Здесь будет инициализация HTTP сервера, Socket.IO, подключение адаптера Redis,
 // настройка неймспейсов и обработчиков событий.
 
-
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 
 import { CHAT_NAMESPACE } from '@chat-app/socket-shared';
 import type { AppSocketServer } from '@chat-app/socket-shared';
 import {
-    serverConfig as config,
-    getPubClient,
+    getServerConfig,
+    getRedisClient,
     getSubClient,
     getNotificationSubscriber,
     createSocketRedisAdapter,
 } from '@chat-app/server-shared';
 import { initializeNotificationListener, onConnection } from './handlers';
 import { jwtAuthMiddleware } from './middlewares';
+
+const config = getServerConfig();
 
 // --- Инициализация HTTP и Socket.IO сервера ---
 const httpServer = createServer();
@@ -29,7 +30,7 @@ const io: AppSocketServer = new Server(httpServer, {
 });
 
 // --- Настройка Redis Adapter для масштабирования ---
-io.adapter(createSocketRedisAdapter(getPubClient(), getSubClient()));
+io.adapter(createSocketRedisAdapter(getRedisClient(), getSubClient()));
 
 // --- Инициализация неймспейса /chat ---
 const chatNamespace = io.of(CHAT_NAMESPACE);
@@ -57,7 +58,7 @@ function gracefulShutdown(signal: NodeJS.Signals) {
     console.log(`\n🚦 Received ${signal}, shutting down gracefully...`);
     io.close(() => {
         console.log('✅ Socket.IO server closed.');
-        getPubClient().quit(() => console.log('✅ Redis PubClient disconnected.'));
+        getRedisClient().quit(() => console.log('✅ Redis PubClient disconnected.'));
         getSubClient().quit(() => console.log('✅ Redis SubClient disconnected.'));
         getNotificationSubscriber().quit(() =>
             console.log('✅ Redis NotificationSubClient disconnected.')

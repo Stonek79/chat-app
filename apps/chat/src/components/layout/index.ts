@@ -1,3 +1,5 @@
-export { ChatAppLayout } from './ChatAppLayout';
-export { ErrorBoundary } from './ErrorBoundary';
-export { Sidebar } from './Sidebar';
+export * from './ChatAppLayout';
+export * from './ErrorBoundary';
+export * from './Sidebar';
+export * from './ThemeRegistry';
+export * from './sidebar/ChatList';

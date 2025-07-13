@@ -17,10 +17,8 @@ alwaysApply: false
     - Импорты из `react` должны быть только именованными (`import { useState } from 'react'`). `import React from 'react'` не используется.
 
 - **База данных**:
-    - Схема Prisma должна быть разделена на файлы по моделям (`User.prisma`, `Chat.prisma` и т.д.).
+    - Схема Prisma
 
-- **Real-time**:
-    - Все имена событий Socket.IO должны быть вынесены в константы (`src/constants/socketEvents.ts`).
 
 - **Безопасность и валидация**:
     - E2E-шифрование должно быть реализовано с использованием Web Crypto API.

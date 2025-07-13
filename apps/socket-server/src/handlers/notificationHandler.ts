@@ -11,8 +11,10 @@ import {
     REDIS_EVENT_NEW_CHAT,
     chatWithDetailsSchema,
 } from '@chat-app/core';
-import { getNotificationSubscriber, serverConfig as config } from '@chat-app/server-shared';
+import { getNotificationSubscriber, getServerConfig } from '@chat-app/server-shared';
 import { z } from 'zod';
+
+const config = getServerConfig();
 
 const newChatNotificationSchema = z.object({
     type: z.literal(REDIS_EVENT_NEW_CHAT),

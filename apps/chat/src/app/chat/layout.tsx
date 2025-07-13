@@ -4,15 +4,13 @@ import { LOGIN_PAGE_ROUTE } from '@chat-app/core';
 import { Box, CircularProgress } from '@mui/material';
 
 import { ChatAppLayout, ErrorBoundary } from '@/components';
-import { fetchChatsForLayout, getCurrentUserFromSessionCookie } from '@/lib';
+import { getCurrentUserFromSessionCookie } from '@/lib';
 
 export default async function ChatLayout({ children }: { children: ReactNode }) {
     const currentUser = await getCurrentUserFromSessionCookie();
     if (!currentUser) {
         redirect(LOGIN_PAGE_ROUTE);
     }
-
-    const chats = await fetchChatsForLayout();
 
     return (
         <Suspense
@@ -30,9 +28,7 @@ export default async function ChatLayout({ children }: { children: ReactNode }) 
             }
         >
             <ErrorBoundary>
-                <ChatAppLayout currentUser={currentUser} chats={chats}>
-                    {children}
-                </ChatAppLayout>
+                <ChatAppLayout>{children}</ChatAppLayout>
             </ErrorBoundary>
         </Suspense>
     );

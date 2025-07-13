@@ -1,72 +1,94 @@
-# Dockerfile для Socket.IO сервера в монорепозитории
+# Dockerfile для Socket.IO сервера с учетом всех пакетов монорепозитория
+# Учитывает media-storage (sharp), constants-edge (автогенерация), и порядок сборки
 
-# Этап 1: Установка зависимостей
-FROM node:20-alpine AS deps
+FROM node:20-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+# Системные зависимости для всех пакетов монорепозитория
+RUN apk add --no-cache \
+    libc6-compat \
+    python3 \
+    make \
+    g++ \
+    vips-dev
+
+RUN corepack enable
+
+# Install turbo globally
+RUN pnpm add turbo --global
+
+# Pruner stage - создание урезанной версии монорепо
+FROM base AS pruner
+WORKDIR /app
+COPY . .
+RUN turbo prune @chat-app/socket-server --docker
+
+# Builder stage - установка зависимостей и сборка с учетом особенностей
+FROM base AS builder
 WORKDIR /app
 
-# Копируем package.json файлы для установки зависимостей
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/*/package.json ./packages/
-COPY apps/*/package.json ./apps/
+# Build-time argument для файла окружения
+ARG ENV_FILE=.env
 
-# Устанавливаем pnpm и зависимости
-RUN npm install -g pnpm@latest
+# Копируем JSON файлы и lockfile для кэширования зависимостей
+COPY --from=pruner /app/out/json/ .
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+
+# Устанавливаем зависимости (включая нативные для sharp)
 RUN pnpm install --frozen-lockfile
 
-# Этап 2: Сборка пакетов и socket-server
-FROM node:20-alpine AS builder
+# Копируем исходный код
+COPY --from=pruner /app/out/full/ .
+
+# КРИТИЧНО: turbo prune не копирует корневые конфигурационные файлы в out/full/
+# Копируем их явно из полного контекста pruner
+COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
+COPY --from=pruner /app/turbo.json ./turbo.json
+
+# КРИТИЧНО: .env файл не попадает в pruner из-за .gitignore
+# Копируем напрямую из исходного контекста (до pruner stage)
+COPY ${ENV_FILE} ./.env
+
+# КРИТИЧНО: Правильный порядок сборки для нашего монорепо
+# 1. Сначала Prisma generate
+RUN pnpm --filter @chat-app/db exec prisma generate
+
+# 2. Собираем core (это автоматически создаст constants-edge через build:edge-constants)
+RUN pnpm turbo run build --filter=@chat-app/core
+
+# 3. Теперь можно собирать socket-server и его зависимости
+RUN pnpm turbo run build --filter=@chat-app/socket-server
+
+# Runner stage - минимальный production образ
+FROM base AS runner
 WORKDIR /app
 
-# Копируем зависимости из предыдущего этапа
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/package.json ./package.json
-COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=deps /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-
-# Копируем весь исходный код
-COPY . .
-
-# Устанавливаем pnpm
-RUN npm install -g pnpm@latest
-
-# Собираем все пакеты
-RUN pnpm build:packages
-
-# Собираем socket-server
-RUN pnpm --filter @chat-app/socket-server build
-
-# Этап 3: Production образ
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-ENV SOCKET_PORT=3001
+# Устанавливаем только runtime зависимости для vips (если нужно в runtime)
+RUN apk add --no-cache vips
 
 # Создаем пользователя для безопасности
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 socketuser
 
-# Копируем package.json для production зависимостей
-COPY --from=deps /app/package.json ./package.json
-COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=deps /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+# Копируем уже установленные node_modules из builder (включая workspace пакеты)
+COPY --from=builder /app/node_modules ./node_modules
 
-# Копируем собранные пакеты
-COPY --from=builder /app/packages/*/dist ./packages/
-COPY --from=builder /app/packages/*/package.json ./packages/
+# Копируем собранные пакеты workspace (нужны для резолва модулей)
+COPY --from=builder /app/packages ./packages
 
-# Копируем собранный socket-server
+# Копируем собранный JavaScript код с сохранением структуры
 COPY --from=builder /app/apps/socket-server/dist ./apps/socket-server/dist
-COPY --from=builder /app/apps/socket-server/package.json ./apps/socket-server/
 
-# Устанавливаем pnpm и только production зависимости
-RUN npm install -g pnpm@latest
-RUN pnpm install --prod --frozen-lockfile
-
-# Меняем владельца файлов
+# Меняем владельца файлов и переключаемся на безопасного пользователя
+RUN chown -R socketuser:nodejs /app
 USER socketuser
+
+# Переменные окружения
+ENV NODE_ENV=production
+ENV PORT=3001
 
 EXPOSE 3001
 
-# Запускаем socket-server
+# Запускаем скомпилированный сервер
 CMD ["node", "apps/socket-server/dist/server.js"] 

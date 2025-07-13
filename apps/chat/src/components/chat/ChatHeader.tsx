@@ -1,10 +1,12 @@
 'use client';
 
-import { MouseEvent,useState } from 'react';
+import { MouseEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CHAT_PAGE_ROUTE } from '@chat-app/core';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import PhoneIcon from '@mui/icons-material/Phone';
+import SearchIcon from '@mui/icons-material/Search';
 import {
     AppBar,
     Avatar,
@@ -40,14 +42,23 @@ export const ChatHeader = ({ chatName, chatAvatarUrl, status }: ChatHeaderProps)
     };
 
     return (
-        <AppBar position="static" color="default" elevation={1}>
-            <Toolbar>
+        <AppBar
+            position="static"
+            color="transparent"
+            elevation={0}
+            sx={{
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                backgroundColor: 'background.paper',
+            }}
+        >
+            <Toolbar sx={{ minHeight: 'sm' }}> {/* TODO: fix interface */}
                 <IconButton
                     edge="start"
                     color="inherit"
                     aria-label="назад"
                     onClick={handleGoBack}
-                    sx={{ mr: 1, display: { lg: 'none' } }} // Показываем только на мобильных
+                    sx={{ mr: 1, display: { md: 'none' } }} // Скрываем только на больших экранах
                 >
                     <ArrowBackIcon />
                 </IconButton>
@@ -62,14 +73,17 @@ export const ChatHeader = ({ chatName, chatAvatarUrl, status }: ChatHeaderProps)
                         {status}
                     </Typography>
                 </Box>
-                <IconButton
-                    edge="end"
-                    color="inherit"
-                    aria-label="меню действий"
-                    onClick={handleMenu}
-                >
-                    <MoreVertIcon />
-                </IconButton>
+                <Box>
+                    <IconButton color="inherit" sx={{ color: 'text.secondary' }}>
+                        <PhoneIcon />
+                    </IconButton>
+                    <IconButton color="inherit" sx={{ color: 'text.secondary' }}>
+                        <SearchIcon />
+                    </IconButton>
+                    <IconButton color="inherit" sx={{ color: 'text.secondary' }}>
+                        <MoreVertIcon />
+                    </IconButton>
+                </Box>
                 <Menu
                     id="menu-appbar"
                     anchorEl={anchorEl}

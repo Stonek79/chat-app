@@ -21,16 +21,11 @@ async function handleSendMessage(
         error?: string;
     }) => void
 ) {
-    console.log('handleSendMessage', payload);
-    console.log('socket', socket);
-
     try {
         const user = socket.data.user;
         if (!user) {
             throw new Error('Для отправки сообщений требуется аутентификация.');
         }
-
-        console.log('handleSendMessage', payload);
 
         // Валидация на уровне TypeScript, без Zod схемы
         if (!payload.chatId || !payload.content) {
@@ -52,7 +47,6 @@ async function handleSendMessage(
         const [newMessage] = await prisma.$transaction([
             prisma.message.create({
                 data: {
-                    id: clientTempId || '',
                     content,
                     contentType,
                     chatId,
@@ -173,7 +167,6 @@ async function handleMarkAsRead(
 
         await prisma.messageReadReceipt.createMany({
             data: messageIdsToMarkAsRead.map(messageId => ({
-                id: messageId,
                 messageId: messageId,
                 userId: user.userId,
             })),

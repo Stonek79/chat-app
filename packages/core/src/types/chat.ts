@@ -55,10 +55,10 @@ export type PrismaChatWithPartialParticipants = Chat & {
 };
 
 export type PrismaChatForList = Chat & {
-    participants?: ChatParticipant[];
-    _count?: {
-        participants?: number;
-        messages?: number;
+    participants: ChatParticipantWithPartialUser[];
+    messages: PrismaMessageWithRelations[];
+    _count: {
+        messages: number;
     };
 };
 

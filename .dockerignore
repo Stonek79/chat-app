@@ -76,7 +76,9 @@ coverage
 **/coverage
 
 # Переменные окружения
-.env*
+.env.local
+.env.*.local
+!.env
 !.env.example
 
 # TypeScript

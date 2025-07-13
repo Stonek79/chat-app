@@ -17,3 +17,19 @@ export const REMEMBER_ME_COOKIE_NAME = 'remember-me';
 export const THEME_COOKIE_NAME = 'theme';
 export const LANGUAGE_COOKIE_NAME = 'language';
 export const AUTH_SOCKET_TOKEN_COOKIE_NAME = 'token';
+
+export const DEFAULT_SERVER_CONFIG = {
+    NODE_ENV: 'development',
+    REDIS_HOST: 'localhost',
+    REDIS_PORT: 6379,
+    REDIS_SOCKET_NOTIFICATIONS_CHANNEL: 'socket-notifications',
+    SOCKET_PORT: 3001,
+    SOCKET_CORS_ORIGIN: 'http://localhost:3000',
+    MINIO_ENDPOINT: 'localhost',
+    MINIO_PORT: 9000,
+    MINIO_USE_SSL: false,
+    MINIO_ACCESS_KEY: 'minioadmin',
+    MINIO_SECRET_KEY: 'minioadmin',
+    MINIO_DEFAULT_BUCKETS: 'avatars,media',
+    MEDIA_PUBLIC_URL: 'http://localhost:8080/media',
+} as const;

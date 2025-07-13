@@ -7,6 +7,7 @@ import type {
     ChatParticipantWithPartialUser,
     PrismaChatWithMessagesAndCount,
     PrismaDataForChatDetails,
+    PrismaChatForList,
 } from '../types/chat';
 import type { DisplayMessage } from '../types/message';
 import { toClientUser, createClientUserFromPartial } from './user';
@@ -140,7 +141,7 @@ export function toClientChatManual(
 export function toChatWithDetails(
     prismaChat: PrismaDataForChatDetails,
     currentUserId: string
-): ChatWithDetails {    
+): ChatWithDetails {
     const members = prismaChat.participants.map(p => toChatParticipantInfo(p));
     const currentUserParticipant = members.find(p => p.userId === currentUserId);
 
@@ -232,5 +233,50 @@ export function toChatWithDetailsFromPartial(
         canDelete,
         canAddMembers,
         canRemoveMembers,
+    };
+}
+
+/**
+ * Преобразует Prisma Chat в ChatWithDetails для списка чатов.
+ * Легковесная версия, использующая данные, оптимизированные для списка.
+ */
+export function toChatListItem(
+    prismaChat: PrismaChatForList,
+    currentUserId: string
+): ChatWithDetails {
+    const members = prismaChat.participants.map(p => toChatParticipantInfoFromPartial(p));
+
+    const lastPrismaMessage = prismaChat.messages[0];
+    const lastMessage = lastPrismaMessage
+        ? toDisplayMessage(lastPrismaMessage, currentUserId)
+        : undefined;
+
+    const unreadCount = prismaChat._count?.messages ?? 0;
+
+    const currentUserParticipant = members.find(p => p.userId === currentUserId);
+    const canEdit =
+        !!currentUserParticipant &&
+        (currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
+            currentUserParticipant.role === DEFAULT_ROLES.ADMIN);
+    const canDelete =
+        !!currentUserParticipant && currentUserParticipant.role === DEFAULT_ROLES.OWNER;
+
+    return {
+        id: prismaChat.id,
+        name: prismaChat.name,
+        isGroupChat: prismaChat.isGroupChat,
+        avatarUrl: prismaChat.avatarUrl,
+        createdAt: prismaChat.createdAt,
+        updatedAt: prismaChat.updatedAt,
+        members,
+        messages: lastMessage ? [lastMessage] : [], // В списке нам не нужен полный массив сообщений
+        lastMessage,
+        unreadCount,
+        participantCount: prismaChat.participants.length,
+        isActive: isChatActiveForUser(members, currentUserId),
+        canEdit,
+        canDelete,
+        canAddMembers: canEdit,
+        canRemoveMembers: canEdit,
     };
 }

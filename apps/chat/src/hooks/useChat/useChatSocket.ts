@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { parse as parseCookie } from 'cookie';
 import type { AppClientSocket } from '@chat-app/socket-shared';
-import { CLIENT_EVENT_JOIN_CHAT, CLIENT_EVENT_LEAVE_CHAT } from '@chat-app/socket-shared';
-import { AUTH_TOKEN_COOKIE_NAME, SOCKET_EVENT_CONNECT, SOCKET_EVENT_DISCONNECT } from '@chat-app/core';
-import { createSocketClient } from '@chat-app/socket-shared';
+import {
+    CLIENT_EVENT_JOIN_CHAT,
+    CLIENT_EVENT_LEAVE_CHAT,
+    getSocket,
+} from '@chat-app/socket-shared';
+import { SOCKET_EVENT_CONNECT, SOCKET_EVENT_DISCONNECT } from '@chat-app/core';
 
 export interface UseChatSocketReturn {
     socket: AppClientSocket | null;
@@ -14,73 +16,48 @@ export const useChatSocket = (chatId: string | null): UseChatSocketReturn => {
     const [isConnected, setIsConnected] = useState<boolean>(false);
     const socketRef = useRef<AppClientSocket | null>(null);
 
+    // Эффект для инициализации сокета и подписки на события connect/disconnect
     useEffect(() => {
-        console.log(
-            '[useChatSocket DEBUG] Socket connection effect RUNNING. Deps - chatId:',
-            chatId
-        );
-
-        // Создаем новый socket клиент
-        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001/chat";
-    
-        const socket = createSocketClient({
-            url: socketUrl,
-            autoConnect: true,
-            timeout: 20000,
-        });
-
+        // Получаем единственный экземпляр сокета
+        const socket = getSocket();
         socketRef.current = socket;
-        const currentSocket = socketRef.current;
+        setIsConnected(socket.connected);
 
-        if (currentSocket) {
-            setIsConnected(currentSocket.connected);
-
-            const handleConnect = () => {
-                console.log('[useChatSocket] Socket connected');
-                setIsConnected(true);
-                if (chatId) {
-                    console.log(`[useChatSocket] Re-joining chat room ${chatId} after connect.`);
-                    currentSocket.emit(CLIENT_EVENT_JOIN_CHAT, chatId);
-                }
-            };
-
-            const handleDisconnect = (reason: string) => {
-                console.log(`[useChatSocket] Socket disconnected, reason: ${reason}`);
-                setIsConnected(false);
-            };
-
-            currentSocket.on(SOCKET_EVENT_CONNECT, handleConnect);
-            currentSocket.on(SOCKET_EVENT_DISCONNECT, handleDisconnect);
-
-            if (currentSocket.connected && chatId) {
-                console.log(
-                    `[useChatSocket] Socket already connected, joining chat room ${chatId}.`
-                );
-                currentSocket.emit(CLIENT_EVENT_JOIN_CHAT, chatId);
+        const handleConnect = () => {
+            console.log('[useChatSocket] Socket connected');
+            setIsConnected(true);
+            // Важно: повторно присоединяемся к комнате после реконнекта
+            if (chatId) {
+                console.log(`[useChatSocket] Re-joining chat room ${chatId} after connect.`);
+                socket.emit(CLIENT_EVENT_JOIN_CHAT, chatId);
             }
+        };
 
-            return () => {
-                console.log('[useChatSocket] Cleaning up socket connection effect.');
-                currentSocket.off(SOCKET_EVENT_CONNECT, handleConnect);
-                currentSocket.off(SOCKET_EVENT_DISCONNECT, handleDisconnect);
-            };
+        const handleDisconnect = (reason: string) => {
+            console.log(`[useChatSocket] Socket disconnected, reason: ${reason}`);
+            setIsConnected(false);
+        };
+
+        socket.on(SOCKET_EVENT_CONNECT, handleConnect);
+        socket.on(SOCKET_EVENT_DISCONNECT, handleDisconnect);
+
+        // Присоединяемся к комнате, если сокет уже подключен
+        if (socket.connected && chatId) {
+            console.log(`[useChatSocket] Socket already connected, joining chat room ${chatId}.`);
+            socket.emit(CLIENT_EVENT_JOIN_CHAT, chatId);
         }
 
-        // Если currentSocket не создался, все равно нужно вернуть cleanup функцию
+        // Функция очистки
         return () => {
-            console.log('[useChatSocket] Cleanup - no socket created');
-        };
-    }, [chatId]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            const currentSocket = socketRef.current;
-            if (currentSocket && chatId) {
-                currentSocket.emit(CLIENT_EVENT_LEAVE_CHAT, chatId);
+            console.log('[useChatSocket] Cleaning up listeners and leaving room.');
+            socket.off(SOCKET_EVENT_CONNECT, handleConnect);
+            socket.off(SOCKET_EVENT_DISCONNECT, handleDisconnect);
+            // Покидаем комнату при размонтировании или смене chatId
+            if (chatId) {
+                socket.emit(CLIENT_EVENT_LEAVE_CHAT, chatId);
             }
         };
-    }, [chatId]);
+    }, [chatId]); // Зависимость от chatId, чтобы правильно входить/выходить из комнат
 
     return {
         socket: socketRef.current,

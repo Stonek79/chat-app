@@ -1,16 +1,12 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, forwardRef } from 'react';
 import type { DisplayMessage } from '@chat-app/core';
 import { ActionType } from '@chat-app/db';
 import { Avatar, Box, Typography } from '@mui/material';
-
-import { useMobile } from '@/hooks/useMobile';
-import { getUsernameColor } from '@/utils';
-
+import { getUsernameColor } from '@/utils/colorUtils';
 import { DeletedMessage } from './DeletedMessage';
 import { MessageActionsMenu } from './MessageActionsMenu';
-import { MessageBubble } from './MessageBubble';
 import { MessageContent } from './MessageContent';
 import { MessageFooter } from './MessageFooter';
 import { SystemMessage } from './SystemMessage';
@@ -46,120 +42,141 @@ interface MessageItemProps {
     isAdmin: boolean;
     onEdit: (message: DisplayMessage) => void;
     onDelete: (messageId: string) => void;
+    participantsCount: number;
+    isCurrentUser: boolean;
+    isMobile: boolean;
+    isNextMessageFromSameSender: boolean;
 }
 
 /**
  * Компонент для отображения отдельного сообщения в чате
  * Поддерживает различные типы контента и действия с сообщением
  */
-const ChatMessageComponent = ({
-    message,
-    currentUserId,
-    isAdmin,
-    onEdit,
-    onDelete,
-    isSameSender,
-    isGroupChat,
-}: MessageItemProps) => {
-    const { contentType } = message;
-    const isMobile = useMobile();
+const ChatMessageComponent = forwardRef<HTMLDivElement, MessageItemProps>(
+    (
+        {
+            message,
+            currentUserId,
+            isAdmin,
+            onEdit,
+            onDelete,
+            isSameSender,
+            isGroupChat,
+            participantsCount,
+            isCurrentUser,
+            isMobile,
+            isNextMessageFromSameSender,
+        },
+        ref
+    ) => {
+        const { contentType } = message;
 
-    const isCurrentUser =
-        message.isCurrentUser !== undefined
-            ? message.isCurrentUser
-            : message.sender && message.sender.id === currentUserId;
+        // Проверяем, удалено ли сообщение
+        const isDeleted =
+            message.actions?.some(action => action.type === ActionType.DELETED) ?? false;
 
-    // Проверяем, удалено ли сообщение
-    const isDeleted = message.actions?.some(action => action.type === ActionType.DELETED) ?? false;
+        const showAvatar = isGroupChat && !isCurrentUser;
+        const showSenderName = isGroupChat && !isCurrentUser && !isSameSender;
+        const marginBottom = isNextMessageFromSameSender ? 0.25 : 1;
 
-    if (contentType === 'SYSTEM') {
-        return <SystemMessage message={message} />;
-    }
+        if (contentType === 'SYSTEM') {
+            return <SystemMessage message={message} />;
+        }
 
-    const handleEdit = () => onEdit(message);
-    const handleDelete = () => onDelete(message.id);
+        const handleEdit = () => onEdit(message);
+        const handleDelete = () => onDelete(message.id);
 
-    const senderColor = isCurrentUser
-        ? 'primary'
-        : message.sender
-          ? getUsernameColor(message.sender.id)
-          : '#FFFFFF';
+        const senderColor = isCurrentUser
+            ? 'primary'
+            : message.sender
+              ? getUsernameColor(message.sender.id)
+              : '#FFFFFF';
 
-    return (
-        <Box
-            sx={{
-                display: 'flex',
-                justifyContent: isCurrentUser && isMobile ? 'flex-end' : 'flex-start',
-                mb: isMobile ? 1 : 0,
-                width: '100%',
-            }}
-        >
-            {(!isMobile || isGroupChat) && (
-                <Avatar
-                    src={message.sender?.avatarUrl ?? undefined}
-                    alt={message.sender?.username ?? 'U'}
-                    sx={{
-                        width: isMobile ? 30 : 40,
-                        fontSize: isMobile ? '1em' : 'inherit',
-                        height: isSameSender || isMobile ? 30 : 40,
-                        mr: 1,
-                        alignSelf: 'flex-start',
-                        visibility:
-                            isSameSender || (isMobile && isGroupChat && isCurrentUser)
-                                ? 'hidden'
-                                : 'visible',
-                    }}
-                    {...defaultAvatarName(message.sender?.username)}
-                />
-            )}
+        const containerSx = {
+            display: 'flex',
+            justifyContent: isCurrentUser ? 'flex-end' : 'flex-start',
+            mb: marginBottom,
+            px: 1,
+            width: '100%',
+            alignItems: 'flex-end',
+        };
 
-            <Box
-                sx={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    flexDirection: isCurrentUser && isMobile ? 'row-reverse' : 'column',
-                }}
-            >
-                {!isSameSender && ((isGroupChat && !isCurrentUser) || !isMobile) && (
-                    <Box sx={{ width: '100%', alignSelf: 'flex-start' }}>
-                        <Typography color={senderColor} sx={{ fontWeight: 'bold' }} variant="body2">
-                            {message.sender?.username}
-                        </Typography>
-                    </Box>
+        return (
+            <Box ref={ref} sx={containerSx}>
+                {showAvatar && (
+                    <Avatar
+                        src={message.sender?.avatarUrl ?? undefined}
+                        alt={message.sender?.username ?? 'U'}
+                        sx={{
+                            width: 30,
+                            height: 30,
+                            fontSize: '0.8em',
+                            mr: 1,
+                            visibility: isSameSender ? 'hidden' : 'visible',
+                        }}
+                        {...defaultAvatarName(message.sender?.username)}
+                    />
                 )}
-                <MessageBubble
-                    isCurrentUser={isCurrentUser}
-                    isMobile={isMobile}
-                    isGroupChat={isGroupChat}
+                <Box
+                    sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: isCurrentUser ? 'flex-end' : 'flex-start',
+                        maxWidth: '80%',
+                    }}
                 >
-                    {isDeleted ? (
-                        <DeletedMessage message={message} currentUserId={currentUserId} />
-                    ) : (
-                        <>
-                            <MessageContent message={message} />
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <MessageFooter
-                                    message={message}
-                                    currentUserId={currentUserId}
-                                    isCurrentUser={isCurrentUser}
-                                    isDeleted={isDeleted}
-                                />
-                                {(isCurrentUser || isAdmin) && (
-                                    <MessageActionsMenu
-                                        message={message}
-                                        isAdmin={isAdmin}
-                                        onEdit={handleEdit}
-                                        onDelete={handleDelete}
-                                    />
-                                )}
-                            </Box>
-                        </>
+                    {showSenderName && (
+                        <Typography
+                            sx={{
+                                fontWeight: 'bold',
+                                color: getUsernameColor(message.sender.id),
+                                ml: isCurrentUser ? 0 : 1.5,
+                                mb: 0.5,
+                            }}
+                            variant="caption"
+                        >
+                            {message.sender.username}
+                        </Typography>
                     )}
-                </MessageBubble>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        {(isCurrentUser || isAdmin) && isCurrentUser && (
+                            <MessageActionsMenu
+                                message={message}
+                                isAdmin={isAdmin}
+                                onEdit={handleEdit}
+                                onDelete={handleDelete}
+                            />
+                        )}
+                        {isDeleted ? (
+                            <DeletedMessage message={message} currentUserId={currentUserId} />
+                        ) : (
+                            <MessageContent message={message} isCurrentUser={isCurrentUser} />
+                        )}
+                        {(isCurrentUser || isAdmin) && !isCurrentUser && (
+                            <MessageActionsMenu
+                                message={message}
+                                isAdmin={isAdmin}
+                                onEdit={handleEdit}
+                                onDelete={handleDelete}
+                            />
+                        )}
+                    </Box>
+
+                    {!isDeleted && (
+                        <MessageFooter
+                            message={message}
+                            currentUserId={currentUserId}
+                            isCurrentUser={isCurrentUser}
+                            isDeleted={isDeleted}
+                            participantsCount={participantsCount}
+                        />
+                    )}
+                </Box>
             </Box>
-        </Box>
-    );
-};
+        );
+    }
+);
+
+ChatMessageComponent.displayName = 'ChatMessage';
 
 export const ChatMessage = memo(ChatMessageComponent);

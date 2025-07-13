@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { AuthenticatedUser, ChatWithDetails } from '@chat-app/core';
 import { UserRole } from '@chat-app/db';
-import { toChatWithDetails } from '@chat-app/core';
+import { toChatWithDetailsFromPartial } from '@chat-app/core';
 import { ApiError, getCurrentUser, handleApiError, prisma } from '@/lib';
 
 interface GetChatParams {
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             },
         });
 
-        if (!participantRecord || !isAdmin) {
+        if (!participantRecord && !isAdmin) {
             throw new ApiError('Доступ запрещен: вы не участник этого чата', 403);
         }
 
@@ -59,22 +59,6 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
                 participants: {
                     include: {
                         user: true,
-                    },
-                },
-                messages: {
-                    orderBy: { createdAt: 'asc' },
-                    include: {
-                        sender: true,
-                        readReceipts: {
-                            include: {
-                                user: true,
-                            },
-                        },
-                        actions: {
-                            include: {
-                                actor: true,
-                            },
-                        },
                     },
                 },
                 _count: {
@@ -99,8 +83,15 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
             throw new ApiError('Чат не найден', 404);
         }
 
+        const unreadCount = chatFromDb._count?.messages ?? 0;
+
         // Используем mapper из core для создания правильного объекта
-        const chatWithDetails: ChatWithDetails = toChatWithDetails(chatFromDb, currentUser.id);
+        const chatWithDetails: ChatWithDetails = toChatWithDetailsFromPartial(
+            chatFromDb,
+            currentUser.id,
+            undefined, // lastMessage не загружается в этом эндпоинте
+            unreadCount
+        );
 
         return NextResponse.json({ chat: chatWithDetails });
     } catch (error) {

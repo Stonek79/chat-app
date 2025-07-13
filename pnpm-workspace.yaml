@@ -1,3 +1,5 @@
 packages:
-    - 'apps/*'
+    # all packages in subdirs of packages/ and apps/
     - 'packages/*'
+    - 'apps/*'
+    - 'constants-edge'

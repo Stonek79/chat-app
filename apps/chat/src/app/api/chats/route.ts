@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toChatListItem } from '@chat-app/core';
 import { prisma, handleApiError, getCurrentUser } from '@/lib';
 
 /**
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Получаем чаты с правильными связями
-        const chats = await prisma.chat.findMany({
+        const prismaChats = await prisma.chat.findMany({
             orderBy: {
                 updatedAt: 'desc',
             },
@@ -44,32 +45,17 @@ export async function GET(request: NextRequest) {
                 },
                 messages: {
                     orderBy: { createdAt: 'desc' },
+                    take: 1,
                     include: {
-                        sender: {
-                            select: {
-                                id: true,
-                                username: true,
-                                avatarUrl: true,
-                            },
-                        },
+                        sender: true,
                         readReceipts: {
                             include: {
-                                user: {
-                                    select: {
-                                        id: true,
-                                        username: true,
-                                    },
-                                },
+                                user: true,
                             },
                         },
                         actions: {
                             include: {
-                                actor: {
-                                    select: {
-                                        id: true,
-                                        username: true,
-                                    },
-                                },
+                                actor: true,
                             },
                         },
                     },
@@ -90,6 +76,9 @@ export async function GET(request: NextRequest) {
                 },
             },
         });
+
+        // Маппим данные в нужный формат для клиента
+        const chats = prismaChats.map(chat => toChatListItem(chat, currentUser.id));
 
         return NextResponse.json({ chats });
     } catch (error) {

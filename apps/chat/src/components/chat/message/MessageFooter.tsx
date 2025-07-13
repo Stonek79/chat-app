@@ -5,15 +5,17 @@ import { Box, Typography } from '@mui/material';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
-import { DeletedMessage } from './DeletedMessage';
 import { MessageStatusIcon } from './MessageStatusIcon';
 
 interface MessageFooterProps {
-    message: Pick<DisplayMessage, 'createdAt' | 'isEdited' | 'readReceipts' | 'isCurrentUser'>;
+    message: Pick<
+        DisplayMessage,
+        'createdAt' | 'isEdited' | 'readReceipts' | 'isCurrentUser' | 'sender'
+    >;
     currentUserId: string;
     isCurrentUser: boolean;
     isDeleted: boolean;
-
+    participantsCount: number;
 }
 
 const formatTime = (date: Date | string) => {
@@ -25,7 +27,16 @@ const formatTime = (date: Date | string) => {
     }
 };
 
-export const MessageFooter = ({ message, currentUserId, isCurrentUser, isDeleted }: MessageFooterProps) => {
+export const MessageFooter = ({
+    message,
+    currentUserId,
+    isCurrentUser,
+    isDeleted,
+    participantsCount,
+}: MessageFooterProps) => {
+    const readByCount = message.readReceipts?.length ?? 0;
+    const isReadByAll = readByCount >= participantsCount - 1;
+
     return (
         <Box
             sx={{
@@ -35,17 +46,26 @@ export const MessageFooter = ({ message, currentUserId, isCurrentUser, isDeleted
                 mt: 0.5,
             }}
         >
-            {isCurrentUser && <MessageStatusIcon message={message} currentUserId={currentUserId} />}
+            {isCurrentUser && !isDeleted && (
+                <MessageStatusIcon
+                    message={message}
+                    currentUserId={message.sender.id}
+                    participantsCount={participantsCount}
+                />
+            )}
             <Typography
                 variant="caption"
                 sx={{
-                    color: message.isCurrentUser ? 'primary.contrastText' : 'text.secondary',
-                    opacity: 0.7,
+                    color: 'text.secondary',
+                    fontSize: '0.675rem',
                     ml: 0.5,
                 }}
             >
                 {message.isEdited && (
-                    <Typography component="span" sx={{ fontStyle: 'italic', mr: 0.5 }}>
+                    <Typography
+                        component="span"
+                        sx={{ fontStyle: 'italic', mr: 0.5, fontSize: 'inherit' }}
+                    >
                         (изм.)
                     </Typography>
                 )}

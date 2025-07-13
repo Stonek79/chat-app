@@ -1,1 +1,2 @@
-export { UserProfileEditForm } from './UserProfileEditForm';
+export * from './UserProfileEditForm';
+export * from './ProfileHeader';

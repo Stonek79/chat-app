@@ -4,17 +4,21 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "dotenvx run --env-file=../../.env next dev",
-        "build": "dotenvx run --env-file=../../.env next build",
+        "dev": "next dev",
+        "dev:docker": "next dev",
+        "build": "next build",
         "start": "next start",
         "lint": "next lint --no-cache",
         "typecheck": "tsc --noEmit",
         "clean": "rm -rf .next dist"
     },
     "dependencies": {
+        "@chat-app/constants-edge": "workspace:*",
         "@chat-app/core": "workspace:*",
         "@chat-app/db": "workspace:*",
+        "@chat-app/media-storage": "workspace:*",
         "@chat-app/socket-shared": "workspace:*",
+        "@emotion/cache": "^11.14.0",
         "@emotion/react": "^11.14.0",
         "@emotion/styled": "^11.14.0",
         "@fontsource/roboto": "^5.2.5",
@@ -22,7 +26,7 @@
         "@mui/icons-material": "^7.1.0",
         "@mui/joy": "^5.0.0-beta.52",
         "@mui/material": "^7.1.0",
-        "@mui/material-nextjs": "^7.1.0",
+        "@mui/material-nextjs": "^7.2.0",
         "@next/eslint-plugin-next": "^15.3.3",
         "bcryptjs": "^3.0.2",
         "cookie": "^1.0.2",
@@ -35,7 +39,8 @@
         "react-error-boundary": "^6.0.0",
         "react-hook-form": "^7.60.0",
         "react-hot-toast": "^2.5.2",
-        "zod": "^3.25.7"
+        "zod": "^3.25.7",
+        "zustand": "^5.0.6"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3",

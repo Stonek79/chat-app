@@ -1,147 +1,82 @@
 // src/store/chatStore.ts
-// import { create } from 'zustand';
-// import { persist, createJSONStorage } from 'zustand/middleware';
+import { create } from 'zustand';
+import type { ChatWithDetails, DisplayMessage } from '@chat-app/core';
+import { API_CHATS_ROUTE } from '@chat-app/core';
 
-// interface Message {
-//   id: string;
-//   chatId: string;
-//   userId: string;
-//   content: string; // Расшифрованное содержимое
-//   createdAt: string; // или Date
-//   // ... другие поля
-// }
+interface ChatState {
+    chats: ChatWithDetails[];
+    isLoading: boolean;
+    error: string | null;
+}
 
-// interface Chat {
-//   id: string;
-//   name: string;
-//   messages: Message[];
-//   encryptionKeyJwk?: JsonWebKey; // Храним JWK ключа шифрования чата
-//   // ... другие метаданные чата
-// }
+interface ChatActions {
+    fetchChats: () => Promise<void>;
+    addChat: (chat: ChatWithDetails) => void;
+    updateLastMessage: (chatId: string, message: DisplayMessage) => void;
+    incrementUnreadCount: (chatId: string) => void;
+    resetUnreadCount: (chatId: string) => void;
+}
 
-// interface ChatState {
-//   chats: Record<string, Chat>; // Объекь, где ключ - chatId
-//   activeChatId: string | null;
-//   // ... другие части состояния, связанные с чатами
-// }
+const useChatStore = create<ChatState & ChatActions>((set, get) => ({
+    chats: [],
+    isLoading: true,
+    error: null,
 
-// interface ChatActions {
-//   addMessage: (chatId: string, message: Message) => void;
-//   loadMessages: (chatId: string, messages: Message[]) => void;
-//   setActiveChatId: (chatId: string | null) => void;
-//   setChatEncryptionKey: (chatId: string, keyJwk: JsonWebKey) => Promise<void>;
-//   getChatEncryptionKey: (chatId: string) => Promise<CryptoKey | null>;
-//   // ... другие действия
-// }
-
-/**
- * Состояние для управления чатами, сообщениями и ключами шифрования (пример с Zustand).
- * Этот store может хранить расшифрованные сообщения на клиенте и ключи шифрования (например, в IndexedDB через persist middleware).
- *
- * Для использования:
- * 1. Установите Zustand: npm install zustand
- * 2. Раскомментируйте и доработайте код ниже.
- */
-
-// const useChatStore = create<ChatState & ChatActions>()(
-//   persist(
-//     (set, get) => ({
-//       chats: {},
-//       activeChatId: null,
-
-//       addMessage: (chatId, message) =>
-//         set((state) => ({
-//           chats: {
-//             ...state.chats,
-//             [chatId]: {
-//               ...state.chats[chatId],
-//               messages: [...(state.chats[chatId]?.messages || []), message].sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
-//             },
-//           },
-//         })),
-
-//       loadMessages: (chatId, messages) =>
-//         set((state) => ({
-//           chats: {
-//             ...state.chats,
-//             [chatId]: {
-//               ...state.chats[chatId],
-//               name: state.chats[chatId]?.name || 'Чат ' + chatId, // Инициализация имени, если его нет
-//               messages: messages.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
-//             },
-//           },
-//         })),
-
-//       setActiveChatId: (chatId) => set({ activeChatId: chatId }),
-
-//       setChatEncryptionKey: async (chatId, keyJwk) => {
-//         set((state) => ({
-//           chats: {
-//             ...state.chats,
-//             [chatId]: {
-//               ...state.chats[chatId],
-//               name: state.chats[chatId]?.name || 'Чат ' + chatId,
-//               messages: state.chats[chatId]?.messages || [],
-//               encryptionKeyJwk: keyJwk,
-//             },
-//           },
-//         }));
-//       },
-
-//       getChatEncryptionKey: async (chatId) => {
-//         const chat = get().chats[chatId];
-//         if (chat?.encryptionKeyJwk) {
-//           try {
-//             // Динамический импорт crypto функций, чтобы избежать проблем на сервере, если store используется в SSR
-//             const { importKeyFromJwk } = await import('@/lib/crypto');
-//             return await importKeyFromJwk(chat.encryptionKeyJwk);
-//           } catch (error) {
-//             console.error('Ошибка импорта ключа шифрования из JWK:', error);
-//             return null;
-//           }
-//         }
-//         return null;
-//       },
-//     }),
-//     {
-//       name: 'chat-storage', // Имя для localStorage/IndexedDB
-//       storage: createJSONStorage(() => localStorage), // или sessionStorage, или IndexedDB (требует доп. настройки)
-      // partialize: (state) => ({ chats: state.chats, activeChatId: state.activeChatId }), // Выбираем, что сохранять
-//     }
-//   )
-// );
-
-// export default useChatStore;
-
-// Заглушка, пока Zustand не установлен и не настроен
-const useChatStorePlaceholder = {
-  getState: () => ({
-    chats: {},
-    activeChatId: null,
-    addMessage: () => console.warn('useChatStore: addMessage не реализован'),
-    loadMessages: () => console.warn('useChatStore: loadMessages не реализован'),
-    setActiveChatId: () => console.warn('useChatStore: setActiveChatId не реализован'),
-    setChatEncryptionKey: async () => console.warn('useChatStore: setChatEncryptionKey не реализован'),
-    getChatEncryptionKey: async () => {
-      console.warn('useChatStore: getChatEncryptionKey не реализован');
-      return null;
+    fetchChats: async () => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await fetch(API_CHATS_ROUTE);
+            if (!response.ok) {
+                throw new Error('Не удалось загрузить чаты');
+            }
+            const { chats } = (await response.json()) as { chats: ChatWithDetails[] };
+            set({ chats: chats || [], isLoading: false });
+        } catch (e) {
+            const error = e instanceof Error ? e.message : 'Произошла неизвестная ошибка';
+            set({ error, isLoading: false });
+        }
     },
-  }),
-  subscribe: () => {
-    console.warn('useChatStore: subscribe не реализован');
-    return () => {};
-  },
-  // Для прямого использования, как useStore.getState().activeChatId
-  chats: {},
-  activeChatId: null,
-  addMessage: () => console.warn('useChatStore: addMessage не реализован (прямой вызов)'),
-  loadMessages: () => console.warn('useChatStore: loadMessages не реализован (прямой вызов)'),
-  setActiveChatId: () => console.warn('useChatStore: setActiveChatId не реализован (прямой вызов)'),
-  setChatEncryptionKey: async () => console.warn('useChatStore: setChatEncryptionKey не реализован (прямой вызов)'),
-  getChatEncryptionKey: async () => {
-    console.warn('useChatStore: getChatEncryptionKey не реализован (прямой вызов)');
-    return null;
-  },
-};
 
-export default useChatStorePlaceholder; 
+    addChat: chat => {
+        set(state => ({
+            chats: [chat, ...state.chats],
+        }));
+    },
+
+    updateLastMessage: (chatId, message) => {
+        set(state => ({
+            chats: state.chats
+                .map(chat => {
+                    if (chat.id === chatId) {
+                        return { ...chat, lastMessage: message, updatedAt: message.createdAt };
+                    }
+                    return chat;
+                })
+                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+        }));
+    },
+
+    incrementUnreadCount: chatId => {
+        set(state => ({
+            chats: state.chats.map(chat => {
+                if (chat.id === chatId) {
+                    return { ...chat, unreadCount: (chat.unreadCount ?? 0) + 1 };
+                }
+                return chat;
+            }),
+        }));
+    },
+
+    resetUnreadCount: chatId => {
+        set(state => ({
+            chats: state.chats.map(chat => {
+                if (chat.id === chatId) {
+                    return { ...chat, unreadCount: 0 };
+                }
+                return chat;
+            }),
+        }));
+    },
+}));
+
+export default useChatStore;

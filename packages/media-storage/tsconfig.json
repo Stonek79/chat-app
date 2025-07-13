@@ -1,0 +1,17 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist",
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "noEmit": false,
+        "baseUrl": ".",
+        "paths": {
+            "@chat-app/server-shared": ["../server-shared/dist"],
+            "@chat-app/server-shared/*": ["../server-shared/dist/*"]
+        }
+    },
+    "include": ["src/**/*.ts"],
+    "exclude": ["node_modules", "dist"]
+}

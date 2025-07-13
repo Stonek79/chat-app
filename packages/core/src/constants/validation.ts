@@ -140,6 +140,9 @@ export const UI_MESSAGES = {
     FILE_MESSAGE: 'Файл',
     SYSTEM_MESSAGE: 'Системное сообщение',
     URL_MESSAGE: 'Ссылка',
+    AVATAR_UPLOAD_ERROR_TITLE: 'Ошибка загрузки аватара',
+    AVATAR_UPLOAD_FAILED: 'Не удалось загрузить аватар',
+    UNKNOWN_ERROR: 'Неизвестная ошибка',
 } as const;
 
 // Типы действий пользователя
