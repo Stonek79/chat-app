@@ -1,26 +1,27 @@
-# Dockerfile для Prisma Studio
+FROM node:20-slim
 
-FROM node:20-alpine
+# 1. Устанавливаем системные зависимости, необходимые для Prisma
+RUN apt-get update && apt-get install -y openssl
+
+# 2. Устанавливаем pnpm глобально
+RUN npm install -g pnpm
 
 WORKDIR /app
 
-# Устанавливаем pnpm глобально
-RUN npm install -g pnpm@latest
-
-# Копируем package.json файлы
+# 3. Копируем файлы, необходимые для установки зависимостей.
+# Это позволяет использовать кэш сборки Docker. pnpm install будет выполняться,
+# только если изменятся эти файлы.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/db/package.json ./packages/db/
 
-# Устанавливаем зависимости
+# 4. Устанавливаем зависимости в неинтерактивном режиме
 RUN pnpm install --frozen-lockfile
 
-# Копируем схему Prisma
-COPY packages/db/src/prisma ./packages/db/src/prisma
-
-# Генерируем Prisma Client
-RUN pnpm --filter @chat-app/db prisma:generate
+# 5. Копируем остальной исходный код проекта
+# Это нужно, чтобы Prisma могла найти файл схемы
+COPY . .
 
 EXPOSE 5555
 
-# Запускаем Prisma Studio
-CMD ["pnpm", "--filter", "@chat-app/db", "prisma:studio", "--hostname", "0.0.0.0"] 
+# 6. Устанавливаем финальную команду для запуска Prisma Studio
+CMD ["pnpm", "--filter", "@chat-app/db", "exec", "prisma", "studio", "--hostname", "0.0.0.0"] 

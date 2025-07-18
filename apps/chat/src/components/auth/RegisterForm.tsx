@@ -11,7 +11,7 @@ import { AuthErrorAlert, AuthRedirectLink, SubmitButton } from './common';
 import { EmailField, PasswordField, UsernameField } from './fields';
 
 export function RegisterForm() {
-    const { register: registerUser, isLoading, authError: globalAuthError } = useAuth();
+    const { register: registerUser, isLoading } = useAuth();
 
     const {
         control,

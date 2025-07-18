@@ -2,33 +2,30 @@
     "name": "@chat-app/media-storage",
     "version": "1.0.0",
     "private": true,
-    "description": "Package for handling media uploads, optimization, and storage",
-    "type": "module",
-    "main": "./dist/index.cjs",
-    "types": "./dist/index.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/index.mjs",
             "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
             "require": "./dist/index.cjs"
         }
     },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
     "scripts": {
-        "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap",
-        "dev": "tsup src/index.ts --format cjs,esm --dts --sourcemap --watch",
-        "clean": "rm -rf .turbo dist",
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "typecheck": "tsc --noEmit",
         "lint": "eslint . --ext .ts",
-        "typecheck": "tsc --noEmit"
+        "clean": "rm -rf dist"
     },
     "dependencies": {
         "@chat-app/server-shared": "workspace:*",
-        "minio": "^8.0.0",
+        "@chat-app/core": "workspace:*",
         "sharp": "^0.33.4"
     },
     "devDependencies": {
-        "@types/node": "^20.14.2",
-        "eslint": "^8.57.0",
-        "tsup": "^8.1.0",
-        "typescript": "^5.4.5"
+        "@types/sharp": "^0.32.0",
+        "tsup": "^8.2.3",
+        "typescript": "^5.8.3"
     }
 }

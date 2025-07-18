@@ -10,77 +10,47 @@ services:
             context: .
             dockerfile: Dockerfile
             args:
-                ENV_FILE: .env.docker
-                # Явно передаем NEXT_PUBLIC_APP_URL в качестве build-аргумента
-                NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
-                NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
-                JWT_SECRET: ${JWT_SECRET}
-                DATABASE_URL: ${DATABASE_URL}
-                JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
-                JWT_MAX_AGE_SECONDS: ${JWT_MAX_AGE_SECONDS}
+                - ENV_FILE=.env.docker
+                - UPLOADS_PATH=/app/uploads
         environment:
+            - DATABASE_URL=${DATABASE_URL} # Эта строка уже была и она правильная для runtime
             - JWT_SECRET=${JWT_SECRET}
-            - DATABASE_URL=${DATABASE_URL}
             - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
             - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
+            - UPLOADS_PATH=/app/uploads
         ports:
             - '${NEXT_APP_PORT:-3000}:3000'
         depends_on:
-            postgres:
-                condition: service_healthy
             redis:
                 condition: service_healthy
             socket-server:
                 condition: service_started
-            minio:
-                condition: service_healthy
         networks:
             - app-network
         restart: unless-stopped
 
     #---------------------------------------------------------------------------
-    # Выделенный Socket.IO Сервер
+    # Socket.IO Сервер (для real-time коммуникаций)
     #---------------------------------------------------------------------------
     socket-server:
         container_name: socket_server_chat
         build:
             context: .
-            dockerfile: apps/socket-server/Dockerfile
-            args:
-                ENV_FILE: .env.docker
+            dockerfile: ./apps/socket-server/Dockerfile
         ports:
-            - '${SOCKET_SERVER_PORT:-3001}:3001'
+            - '${SOCKET_PORT:-3001}:3001'
         depends_on:
-            postgres:
-                condition: service_healthy
-            redis:
-                condition: service_healthy
-        networks:
-            - app-network
-        restart: unless-stopped
-
-    #---------------------------------------------------------------------------
-    # PostgreSQL База Данных
-    #---------------------------------------------------------------------------
-    postgres:
-        container_name: postgres_db_chat
-        image: postgres:16-alpine
-        ports:
-            - '${POSTGRES_PORT:-5432}:5432'
+            - redis
         volumes:
-            - postgres_data:/var/lib/postgresql/data
-        environment:
-            POSTGRES_USER: ${POSTGRES_USER:-user}
-            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-            POSTGRES_DB: ${POSTGRES_DB:-chat_app_db}
+            - ./apps/socket-server:/app/apps/socket-server
+            - ./packages:/app/packages
+            - /app/apps/socket-server/node_modules
+            - /app/packages/core/node_modules
+            - /app/packages/db/node_modules
+            - /app/packages/socket-shared/node_modules
+            - /app/packages/server-shared/node_modules
         networks:
             - app-network
-        healthcheck:
-            test:
-                ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-chat_app_db}']
-            interval: 10s
-            timeout: 5s
-            retries: 5
         restart: unless-stopped
 
     #---------------------------------------------------------------------------
@@ -113,9 +83,8 @@ services:
             dockerfile: Dockerfile.prisma-studio
         ports:
             - '5555:5555'
-        depends_on:
-            postgres:
-                condition: service_healthy
+        env_file:
+            - .env.docker
         networks:
             - app-network
         profiles:
@@ -123,42 +92,18 @@ services:
         restart: unless-stopped
 
     #---------------------------------------------------------------------------
-    # MinIO Сервис для S3-совместимого хранения
-    #---------------------------------------------------------------------------
-    minio:
-        container_name: minio_storage_chat
-        image: minio/minio:latest
-        command: server /data --console-address ":9001"
-        ports:
-            - '${MINIO_API_PORT:-9000}:9000'
-            - '${MINIO_CONSOLE_PORT:-9001}:9001'
-        environment:
-            MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-            MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-            MINIO_DEFAULT_BUCKETS: ${MINIO_DEFAULT_BUCKETS:-avatars,media}
-        volumes:
-            - minio_data:/data
-        networks:
-            - app-network
-        healthcheck:
-            test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
-            interval: 30s
-            timeout: 20s
-            retries: 3
-        restart: unless-stopped
-
-    #---------------------------------------------------------------------------
-    # Nginx Прокси для раздачи статики из MinIO
+    # Nginx Прокси для раздачи статики
     #---------------------------------------------------------------------------
     nginx:
         container_name: nginx_proxy_chat
         image: nginx:latest
         volumes:
             - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+            - uploads:/app/uploads
         ports:
             - '${NGINX_PORT:-8080}:80'
         depends_on:
-            - minio
+            - next-app
         networks:
             - app-network
         restart: unless-stopped
@@ -171,9 +116,7 @@ networks:
         driver: bridge
 
 volumes:
-    postgres_data:
-        driver: local
     redis_data:
         driver: local
-    minio_data:
+    uploads:
         driver: local

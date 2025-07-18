@@ -9,25 +9,36 @@ services:
         # 'builder' содержит все dev-зависимости, нужные для hot-reload.
         build:
             target: builder
-        # Команда для запуска сервера в режиме разработки.
-        command: pnpm --filter @chat-app/chat run dev
+            args:
+                - ENV_FILE=.env.docker
+                - UPLOADS_PATH=/app/uploads
+        # Сначала собираем все зависимости, потом запускаем dev-сервер.
+        # Это гарантирует, что все пакеты из 'packages' будут доступны для Next.js.
+        command: sh -c "pnpm --filter @chat-app/core run build:edge-constants && pnpm build && pnpm --filter @chat-app/chat run dev"
+        networks:
+            - app-network
         volumes:
-            # Синхронизируем исходный код Next.js приложения.
             - ./apps/chat:/app/apps/chat
-            # Синхронизируем все общие пакеты.
             - ./packages:/app/packages
-            # Этот "анонимный том" - трюк, чтобы локальная папка node_modules (которой нет)
-            # не затирала папку node_modules, установленную внутри контейнера.
-            - /app/node_modules
+            - uploads:/app/uploads # Общий volume для медиафайлов
+            - /app/apps/chat/node_modules
+            - /app/apps/chat/.next
         # Указываем файл с переменными окружения для разработки.
         env_file:
             - .env.docker
+        environment:
+            - UPLOADS_PATH=/app/uploads
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
 
+    # Сервер сокетов
     socket-server:
         build:
             target: builder
         # Запускаем сервер с помощью nodemon для автоматической перезагрузки при изменениях.
         command: pnpm --filter @chat-app/socket-server run dev
+        networks:
+            - app-network
         volumes:
             # Синхронизируем исходный код сокет-сервера.
             - ./apps/socket-server:/app/apps/socket-server
@@ -36,18 +47,12 @@ services:
             - /app/node_modules
         env_file:
             - .env.docker
+        environment:
+            - UPLOADS_PATH=/app/uploads
 
+    # Для nginx в режиме разработки специфических переопределений не требуется.
+    # Основная конфигурация nginx.conf уже настроена на работу с dev-сервером Next.js
+    # и раздачу статики из общего volume 'uploads'.
     nginx: {}
-        # Для разработки можно проксировать запросы напрямую на Next.js dev server,
-        # но текущая конфигурация с прокси на MinIO тоже подходит.
-        # Оставляем без изменений, но если бы была отдельная nginx.dev.conf,
-        # мы бы переопределили её здесь.
-        # volumes:
-        # - ./config/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
-        # pass
-
-    # Сервисы postgres, redis, minio остаются без изменений из основного файла.
-    # postgres: {}
     redis: {}
-    minio: {}
     prisma-studio: {}

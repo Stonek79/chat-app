@@ -1,26 +1,43 @@
 import sharp from 'sharp';
-import { minioClient, BUCKETS } from './client';
-import { Readable } from 'stream';
+import path from 'path';
 import { getServerConfig } from '@chat-app/server-shared';
-
-const RESIZE_OPTIONS: Record<typeof BUCKETS.AVATARS, sharp.ResizeOptions> = {
-    [BUCKETS.AVATARS]: {
-        width: 200,
-        height: 200,
-        fit: 'cover',
-    },
-};
-
-type BucketName = (typeof BUCKETS)[keyof typeof BUCKETS];
+import { saveFileLocally, BUCKETS, BucketName } from './file-storage';
+import { IMAGE_PROCESSING_PROFILES, ImageProcessingProfile } from '@chat-app/core';
 
 /**
- * Uploads a file to a specified MinIO bucket.
- * If the bucket is for avatars, it resizes and converts the image to WebP.
- *
- * @param bucketName - The name of the bucket to upload to.
- * @param fileName - The name of the file to create in the bucket (should end with .webp).
- * @param fileBuffer - The buffer containing the original file data.
- * @returns The public URL of the uploaded file.
+ * Обрабатывает изображение с помощью sharp: изменяет размер, обрезает и конвертирует в WebP.
+ * @param fileBuffer - Буфер исходного изображения.
+ * @param profileName - Название профиля обработки ('AVATAR' или 'MESSAGE_IMAGE').
+ * @returns Буфер обработанного изображения в формате WebP.
+ */
+async function processImage(
+    fileBuffer: Buffer,
+    profileName: ImageProcessingProfile
+): Promise<Buffer> {
+    const profile = IMAGE_PROCESSING_PROFILES[profileName];
+    try {
+        const pipeline = sharp(fileBuffer)
+            .resize({
+                width: profile.maxWidth,
+                height: profile.maxHeight,
+                fit: profile.fit,
+                withoutEnlargement: true, // Не увеличивать, если изображение меньше
+            })
+            .webp({ quality: profile.quality });
+
+        return await pipeline.toBuffer();
+    } catch (error) {
+        console.error(`Image processing failed for profile ${profileName}:`, error);
+        throw new Error('Could not process the image.');
+    }
+}
+
+/**
+ * Загружает файл, обрабатывает его (если это изображение) и сохраняет локально.
+ * @param bucketName - Имя бакета для сохранения.
+ * @param fileName - Исходное имя файла.
+ * @param fileBuffer - Буфер с данными файла.
+ * @returns Публичный URL для доступа к файлу.
  */
 export async function uploadFile(
     bucketName: BucketName,
@@ -28,32 +45,24 @@ export async function uploadFile(
     fileBuffer: Buffer
 ): Promise<string> {
     let processedBuffer = fileBuffer;
-    let finalContentType = 'application/octet-stream'; // Default content type
+    let finalFileName = fileName;
 
-    // Resize and convert image if it's an avatar
-    if (bucketName === BUCKETS.AVATARS) {
-        processedBuffer = await sharp(fileBuffer)
-            .resize(RESIZE_OPTIONS[bucketName])
-            .webp({ quality: 80 })
-            .toBuffer();
-        finalContentType = 'image/webp';
+    const isImage = /\.(jpg|jpeg|png|gif|bmp|tiff|webp)$/i.test(fileName);
+
+    if (isImage) {
+        const profileName: ImageProcessingProfile =
+            bucketName === BUCKETS.AVATARS ? 'AVATAR' : 'MESSAGE_IMAGE';
+
+        processedBuffer = await processImage(fileBuffer, profileName);
+
+        // Принудительно меняем расширение на .webp
+        finalFileName = `${path.parse(fileName).name}.webp`;
     }
 
-    const stream = Readable.from(processedBuffer);
-    const metaData = {
-        'Content-Type': finalContentType,
-    };
+    // Сохраняем файл в локальное хранилище
+    await saveFileLocally(bucketName, finalFileName, processedBuffer);
 
-    await minioClient.client.putObject(
-        bucketName,
-        fileName,
-        stream,
-        processedBuffer.length,
-        metaData
-    );
-
-    const env = getServerConfig();
-    const publicUrl = `${env.MEDIA_PUBLIC_URL}/${bucketName}/${fileName}`;
-
-    return publicUrl;
+    // Формируем публичный URL
+    const { MEDIA_PUBLIC_URL } = getServerConfig();
+    return `${MEDIA_PUBLIC_URL}/${bucketName}/${finalFileName}`;
 }

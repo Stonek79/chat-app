@@ -2,8 +2,6 @@
 
 import TextField, { TextFieldProps } from '@mui/material/TextField';
 
-import { useAuth } from '@/hooks'; // Для очистки общей ошибки при изменении поля
-
 // Исключаем пропсы, которые мы будем устанавливать по умолчанию или управлять ими изнутри
 // type BaseTextFieldProps = Omit<TextFieldProps, 'value' | 'onChange' | 'error' | 'name' | 'id' | 'label' | 'autoComplete'>;
 
@@ -15,10 +13,7 @@ interface EmailFieldProps extends Omit<TextFieldProps, 'name' | 'label' | 'autoC
 }
 
 export function EmailField(props: EmailFieldProps) {
-    const auth = useAuth();
-
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        auth.clearAuthError?.();
         if (props.onChange) {
             props.onChange(event);
         }

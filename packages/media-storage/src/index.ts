@@ -1,2 +1,2 @@
-export * from './client';
 export * from './upload';
+export * from './file-storage';

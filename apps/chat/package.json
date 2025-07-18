@@ -17,6 +17,7 @@
         "@chat-app/core": "workspace:*",
         "@chat-app/db": "workspace:*",
         "@chat-app/media-storage": "workspace:*",
+        "@chat-app/server-shared": "workspace:*",
         "@chat-app/socket-shared": "workspace:*",
         "@emotion/cache": "^11.14.0",
         "@emotion/react": "^11.14.0",
@@ -39,6 +40,7 @@
         "react-error-boundary": "^6.0.0",
         "react-hook-form": "^7.60.0",
         "react-hot-toast": "^2.5.2",
+        "swr": "^2.3.4",
         "zod": "^3.25.7",
         "zustand": "^5.0.6"
     },

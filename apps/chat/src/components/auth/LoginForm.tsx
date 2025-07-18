@@ -17,7 +17,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ returnTo, registrationSuccess }: LoginFormProps) {
-    const { login, isLoading, clearAuthError } = useAuth();
+    const { login, isLoading } = useAuth();
 
     const {
         control,
@@ -32,7 +32,6 @@ export function LoginForm({ returnTo, registrationSuccess }: LoginFormProps) {
 
     const onSubmit = async (data: LoginCredentials) => {
         try {
-            clearAuthError?.();
             await login(data, returnTo);
         } catch (error: unknown) {
             // Обрабатываем общую ошибку, не привязанную к полю

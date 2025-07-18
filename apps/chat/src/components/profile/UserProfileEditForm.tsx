@@ -2,26 +2,21 @@
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ClientUser, UpdateUserPayload, updateUserSchema } from '@chat-app/core';
+import { UpdateUserPayload, updateUserSchema } from '@chat-app/core';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import TextField from '@mui/material/TextField';
 import Alert from '@mui/material/Alert';
 import { useAuth } from '@/hooks';
-import { useMobile } from '@/hooks';
 import { AvatarUpload } from './AvatarUpload';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { ProfileHeader } from './ProfileHeader';
 import Typography from '@mui/material/Typography';
 
-interface UserProfileEditFormProps {
-    initialUserData: ClientUser;
-}
-
-export function UserProfileEditForm({ initialUserData }: UserProfileEditFormProps) {
-    const { updateUser, isLoading } = useAuth();
-    const isMobile = useMobile();
+export function UserProfileEditForm() {
+    const { updateUser, isLoading, user } = useAuth();
+    console.log('user', user);
 
     const {
         control,
@@ -31,8 +26,8 @@ export function UserProfileEditForm({ initialUserData }: UserProfileEditFormProp
     } = useForm<UpdateUserPayload>({
         resolver: zodResolver(updateUserSchema),
         defaultValues: {
-            username: initialUserData.username || '',
-            avatarUrl: initialUserData.avatarUrl || '',
+            username: user?.username || '',
+            avatarUrl: user?.avatarUrl || '',
         },
     });
 

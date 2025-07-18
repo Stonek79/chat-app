@@ -28,5 +28,5 @@ export default function ProfilePage() {
         return null;
     }
 
-    return <UserProfileEditForm initialUserData={user} />;
+    return <UserProfileEditForm />;
 }

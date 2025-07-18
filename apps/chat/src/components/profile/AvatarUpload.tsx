@@ -1,82 +1,138 @@
 'use client';
 
-import { ChangeEvent, useState } from 'react';
-import Avatar from '@mui/material/Avatar';
-import ButtonBase from '@mui/material/ButtonBase';
+import { ChangeEvent, useState, useRef, MouseEvent } from 'react';
+import {
+    Avatar,
+    Box,
+    ButtonBase,
+    CircularProgress,
+    Menu,
+    MenuItem,
+    ListItemIcon,
+    ListItemText,
+} from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { useAvatar } from '@/hooks/useAvatar';
 import { useAuth } from '@/hooks';
-import { CircularProgress, Box } from '@mui/material';
-import toast from 'react-hot-toast';
-import { API_FILES_AVATAR_ROUTE, UI_MESSAGES } from '@chat-app/core';
+import { ConfirmationModal } from '@/components/common/ConfirmationModal';
 
 export const AvatarUpload = () => {
-    const { user, mutate } = useAuth();
-    const [isLoading, setIsLoading] = useState(false);
+    const { user } = useAuth();
+    const { isUploading, isDeleting, uploadAvatar, deleteAvatar } = useAvatar();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const usernameInitial = user?.username ? user.username.charAt(0).toUpperCase() : 'A';
-    const avatarSrc = user?.avatarUrl || '';
+    const isLoading = isUploading || isDeleting;
 
-    const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const handleMenuOpen = (event: MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleMenuClose = () => {
+        setAnchorEl(null);
+    };
+
+    const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (!file || !user) return;
-
-        setIsLoading(true);
-        const formData = new FormData();
-        formData.append('avatar', file);
-
-        try {
-            const response = await fetch(API_FILES_AVATAR_ROUTE, {
-                method: 'POST',
-                body: formData,
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || UI_MESSAGES.AVATAR_UPLOAD_FAILED);
-            }
-
-            // Manually trigger a re-fetch/re-validation of the user data
-            await mutate();
-        } catch (err) {
-            const message = err instanceof Error ? err.message : UI_MESSAGES.UNKNOWN_ERROR;
-            toast.error(`${UI_MESSAGES.AVATAR_UPLOAD_ERROR_TITLE}: ${message}`);
-        } finally {
-            setIsLoading(false);
+        if (file) {
+            uploadAvatar(file);
         }
     };
 
+    const triggerFileInput = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleAvatarClick = (event: MouseEvent<HTMLElement>) => {
+        if (user?.avatarUrl) {
+            handleMenuOpen(event);
+        } else {
+            triggerFileInput();
+        }
+    };
+
+    const handleReplace = () => {
+        handleMenuClose();
+        triggerFileInput();
+    };
+
+    const handleDeleteRequest = () => {
+        handleMenuClose();
+        setIsModalOpen(true);
+    };
+
+    const handleDeleteConfirm = () => {
+        setIsModalOpen(false);
+        deleteAvatar();
+    };
+
+    if (!user) return null;
+
     return (
-        <Box sx={{ position: 'relative', width: 58, height: 58 }}>
-            <ButtonBase
-                component="label"
-                role={undefined}
-                tabIndex={-1}
-                aria-label="Avatar image"
-                sx={{
-                    borderRadius: '50%',
-                    '&:has(:focus-visible)': {
-                        outline: '2px solid',
-                        outlineOffset: '2px',
-                    },
-                }}
+        <>
+            <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                <ButtonBase
+                    onClick={handleAvatarClick}
+                    disabled={isLoading}
+                    sx={{ borderRadius: '50%', p: 0 }}
+                >
+                    <Avatar
+                        src={user.avatarUrl ?? ''}
+                        alt={user.username}
+                        sx={{
+                            width: 80,
+                            height: 80,
+                            opacity: isLoading ? 0.5 : 1,
+                        }}
+                    >
+                        {user.username.charAt(0).toUpperCase()}
+                    </Avatar>
+                </ButtonBase>
+                {isLoading && (
+                    <CircularProgress
+                        size={80}
+                        sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            zIndex: 1,
+                        }}
+                    />
+                )}
+            </Box>
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                hidden
                 disabled={isLoading}
-            >
-                <Avatar alt="User avatar" src={avatarSrc} sx={{ width: 58, height: 58 }}>
-                    {usernameInitial}
-                </Avatar>
-                <input type="file" accept="image/*" hidden onChange={handleAvatarChange} />
-            </ButtonBase>
-            {isLoading && (
-                <CircularProgress
-                    size={58}
-                    sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        zIndex: 1,
-                    }}
-                />
-            )}
-        </Box>
+            />
+            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+                <MenuItem onClick={handleReplace}>
+                    <ListItemIcon>
+                        <EditIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Заменить</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={handleDeleteRequest}>
+                    <ListItemIcon>
+                        <DeleteIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Удалить</ListItemText>
+                </MenuItem>
+            </Menu>
+
+            <ConfirmationModal
+                open={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onConfirm={handleDeleteConfirm}
+                title="Удалить аватар?"
+                description="Это действие нельзя будет отменить. Вы уверены, что хотите удалить свой аватар?"
+                confirmButtonText="Удалить"
+            />
+        </>
     );
 };

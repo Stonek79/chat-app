@@ -16,7 +16,9 @@
             "@chat-app/socket-shared": ["../../packages/socket-shared/dist"],
             "@chat-app/socket-shared/*": ["../../packages/socket-shared/dist/*"],
             "@chat-app/server-shared": ["../../packages/server-shared/dist"],
-            "@chat-app/server-shared/*": ["../../packages/server-shared/dist/*"]
+            "@chat-app/server-shared/*": ["../../packages/server-shared/dist/*"],
+            "@chat-app/media-storage": ["../../packages/media-storage/dist"],
+            "@chat-app/media-storage/*": ["../../packages/media-storage/dist/*"]
         }
     },
     "include": ["src/**/*.ts"],

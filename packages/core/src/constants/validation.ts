@@ -76,11 +76,36 @@ export const ERROR_CODES = {
     // Файлы
     FILE_UPLOAD_ERROR: 'FILE_UPLOAD_ERROR',
     FILE_NOT_FOUND: 'FILE_NOT_FOUND',
+    FILE_DELETE_ERROR: 'FILE_DELETE_ERROR',
+    UNKNOWN_ERROR: 'UNKNOWN_ERROR',
 
     // Сеть
     NETWORK_ERROR: 'NETWORK_ERROR',
     TIMEOUT_ERROR: 'TIMEOUT_ERROR',
     CONNECTION_ERROR: 'CONNECTION_ERROR',
+} as const;
+
+export const ERROR_MESSAGES = {
+    [ERROR_CODES.UNAUTHORIZED]: 'Не авторизован',
+    [ERROR_CODES.FORBIDDEN]: 'Доступ запрещен',
+    [ERROR_CODES.NOT_FOUND]: 'Не найдено',
+    [ERROR_CODES.BAD_REQUEST]: 'Некорректный запрос',
+    [ERROR_CODES.INTERNAL_ERROR]: 'Внутренняя ошибка сервера',
+    [ERROR_CODES.VALIDATION_ERROR]: 'Ошибка валидации',
+    [ERROR_CODES.NETWORK_ERROR]: 'Ошибка сети',
+    [ERROR_CODES.TIMEOUT_ERROR]: 'Таймаут запроса',
+    [ERROR_CODES.CONNECTION_ERROR]: 'Ошибка соединения',
+    [ERROR_CODES.FILE_UPLOAD_ERROR]: 'Ошибка загрузки файла',
+    [ERROR_CODES.FILE_NOT_FOUND]: 'Файл не найден',
+    [ERROR_CODES.FILE_DELETE_ERROR]: 'Ошибка удаления файла',
+    [ERROR_CODES.UNKNOWN_ERROR]: 'Неизвестная ошибка',
+    [ERROR_CODES.INVALID_CREDENTIALS]: 'Неверные учетные данные',
+    [ERROR_CODES.TOKEN_EXPIRED]: 'Токен истек',
+    [ERROR_CODES.TOKEN_INVALID]: 'Неверный токен',
+    [ERROR_CODES.USER_NOT_FOUND]: 'Пользователь не найден',
+    [ERROR_CODES.USER_ALREADY_EXISTS]: 'Пользователь уже существует',
+    [ERROR_CODES.USERNAME_TAKEN]: 'Имя пользователя уже занято',
+    [ERROR_CODES.EMAIL_TAKEN]: 'Email уже занят',
 } as const;
 
 // HTTP статус коды
@@ -130,6 +155,14 @@ export const VALIDATION_RULES = {
 
 // UI константы
 export const UI_MESSAGES = {
+    FILE_NOT_PROVIDED: 'Файл не предоставлен',
+    FILE_NOT_IMAGE: 'Файл не является изображением',
+    FILE_NOT_VIDEO: 'Файл не является видео файлом',
+    FILE_NOT_AUDIO: 'Файл не является аудио файлом',
+    FILE_NOT_DOCUMENT: 'Файл не является документом',
+    FILE_NOT_FOUND: 'Файл не найден',
+    FILE_SIZE_EXCEEDS: 'Файл слишком большой',
+    FILE_SIZE_EXCEEDS_AVATAR: 'Аватар слишком большой',
     UNKNOWN_USER: 'Неизвестный пользователь',
     UNNAMED_CHAT: 'Чат без названия',
     DELETED_MESSAGE: 'Сообщение удалено',
@@ -142,6 +175,11 @@ export const UI_MESSAGES = {
     URL_MESSAGE: 'Ссылка',
     AVATAR_UPLOAD_ERROR_TITLE: 'Ошибка загрузки аватара',
     AVATAR_UPLOAD_FAILED: 'Не удалось загрузить аватар',
+    AVATAR_UPLOAD_SUCCESS: 'Аватар успешно обновлен!',
+    AVATAR_DELETE_SUCCESS: 'Аватар успешно удален',
+    AVATAR_DELETE_FAILED: 'Не удалось удалить аватар',
+    DELETE_CHAT_SUCCESS: 'Чат успешно удален!',
+    DELETE_CHAT_FAILED: 'Не удалось удалить чат',
     UNKNOWN_ERROR: 'Неизвестная ошибка',
 } as const;
 

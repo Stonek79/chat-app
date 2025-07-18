@@ -14,10 +14,17 @@ import {
     getNotificationSubscriber,
     createSocketRedisAdapter,
 } from '@chat-app/server-shared';
+import { initializeStorage } from '@chat-app/media-storage';
 import { initializeNotificationListener, onConnection } from './handlers';
 import { jwtAuthMiddleware } from './middlewares';
 
 const config = getServerConfig();
+
+// --- Инициализация локального хранилища ---
+initializeStorage().catch((error: Error) => {
+    console.error('Failed to initialize local storage:', error.message);
+    process.exit(1);
+});
 
 // --- Инициализация HTTP и Socket.IO сервера ---
 const httpServer = createServer();

@@ -25,11 +25,5 @@ export const DEFAULT_SERVER_CONFIG = {
     REDIS_SOCKET_NOTIFICATIONS_CHANNEL: 'socket-notifications',
     SOCKET_PORT: 3001,
     SOCKET_CORS_ORIGIN: 'http://localhost:3000',
-    MINIO_ENDPOINT: 'localhost',
-    MINIO_PORT: 9000,
-    MINIO_USE_SSL: false,
-    MINIO_ACCESS_KEY: 'minioadmin',
-    MINIO_SECRET_KEY: 'minioadmin',
-    MINIO_DEFAULT_BUCKETS: 'avatars,media',
     MEDIA_PUBLIC_URL: 'http://localhost:8080/media',
 } as const;

@@ -29,14 +29,9 @@ const serverEnvSchema = z.object({
     SOCKET_PORT: z.coerce.number().int().positive().default(DEFAULT_SERVER_CONFIG.SOCKET_PORT),
     SOCKET_CORS_ORIGIN: z.string().min(1).default(DEFAULT_SERVER_CONFIG.SOCKET_CORS_ORIGIN),
 
-    // MinIO конфигурация
-    MINIO_ENDPOINT: z.string().min(1).default(DEFAULT_SERVER_CONFIG.MINIO_ENDPOINT),
-    MINIO_PORT: z.coerce.number().int().positive().default(DEFAULT_SERVER_CONFIG.MINIO_PORT),
-    MINIO_USE_SSL: z.coerce.boolean().default(false),
-    MINIO_ACCESS_KEY: z.string().min(1).default(DEFAULT_SERVER_CONFIG.MINIO_ACCESS_KEY),
-    MINIO_SECRET_KEY: z.string().min(1).default(DEFAULT_SERVER_CONFIG.MINIO_SECRET_KEY),
-    MINIO_DEFAULT_BUCKETS: z.string().min(1).default(DEFAULT_SERVER_CONFIG.MINIO_DEFAULT_BUCKETS),
+    // Media Storage
     MEDIA_PUBLIC_URL: z.string().url().default(DEFAULT_SERVER_CONFIG.MEDIA_PUBLIC_URL),
+    UPLOADS_PATH: z.string().min(1).default('/app/uploads'), // Путь внутри Docker контейнера
 });
 
 // Клиентская конфигурация (безопасная для отправки на клиент)

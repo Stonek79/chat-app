@@ -14,6 +14,7 @@
     "dependencies": {
         "@chat-app/core": "workspace:*",
         "@chat-app/db": "workspace:*",
+        "@chat-app/media-storage": "workspace:*",
         "@chat-app/server-shared": "workspace:*",
         "@chat-app/socket-shared": "workspace:*",
         "cookie": "^1.0.2",

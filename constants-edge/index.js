@@ -95,6 +95,7 @@ export const SOCKET_RECONNECTION_DELAY = 1000;
 export const SUPPORTED_AUDIO_FORMATS = ["mp3","wav","ogg","flac"];
 export const SUPPORTED_DOCUMENT_FORMATS = ["pdf","doc","docx","txt","rtf"];
 export const SUPPORTED_IMAGE_FORMATS = ["jpg","jpeg","png","gif","webp"];
+export const SUPPORTED_INPUT_FORMATS = ["image/jpeg","image/jpg","image/png","image/gif","image/webp","image/bmp","image/tiff"];
 export const SUPPORTED_VIDEO_FORMATS = ["mp4","webm","ogg"];
 export const THEME_COOKIE_NAME = "theme";
 export const TYPING_INDICATOR_TIMEOUT = 3000;

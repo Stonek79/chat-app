@@ -42,8 +42,6 @@ export const useChatEventHandlers = ({
         if (!socket || !chatId || !userId) return;
 
         const handleReceiveMessage = (payload: MessagePayload) => {
-            console.log('[useChatEventHandlers] Received SERVER_EVENT_RECEIVE_MESSAGE:', payload);
-
             // Преобразуем MessagePayload в DisplayMessage
             const displayMessage = convertMessagePayloadToDisplayMessage(payload, userId);
             setMessages(prevMessages => [...prevMessages, displayMessage]);

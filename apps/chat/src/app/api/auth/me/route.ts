@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import {
-    AUTH_TOKEN_COOKIE_NAME,
-    appJWTPayloadSchema,
-    clientUserSchema,
-    createClientUserFromPartial,
-} from '@chat-app/core';
-import { ApiError, handleApiError } from '@/lib';
+import { AUTH_TOKEN_COOKIE_NAME, appJWTPayloadSchema, toClientUser } from '@chat-app/core';
+import { ApiError, handleApiError, prisma } from '@/lib';
 
 /**
  * @swagger
@@ -14,7 +9,7 @@ import { ApiError, handleApiError } from '@/lib';
  *   get:
  *     summary: Получение данных текущего аутентифицированного пользователя
  *     tags: [Auth]
- *     description: Проверяет JWT токен из cookie и возвращает данные пользователя, если токен валиден.
+ *     description: Проверяет JWT токен из cookie, находит пользователя в базе данных и возвращает его актуальные данные.
  *     security:
  *       - cookieAuth: [] # Указывает, что эндпоинт требует аутентификации через cookie
  *     responses:
@@ -28,7 +23,7 @@ import { ApiError, handleApiError } from '@/lib';
  *                 user:
  *                   $ref: '#/components/schemas/ClientUser'
  *       401:
- *         description: Пользователь не аутентифицирован (токен отсутствует, невалиден или истек).
+ *         description: Пользователь не аутентифицирован (токен отсутствует, невалиден или истек) или не найден в базе данных.
  *         content:
  *           application/json:
  *             schema:
@@ -67,6 +62,8 @@ export async function GET(req: NextRequest) {
                 { message: 'Невалидный или истекший токен', error: 'InvalidTokenError' },
                 { status: 401 }
             );
+
+            // Удаляем невалидный cookie
             errResponse.cookies.set(AUTH_TOKEN_COOKIE_NAME, '', { maxAge: 0 });
             return errResponse;
         }
@@ -74,30 +71,48 @@ export async function GET(req: NextRequest) {
         const validationResult = appJWTPayloadSchema.safeParse(decoded);
 
         if (!validationResult.success) {
+            // Если токен есть, но его содержимое не соответствует схеме, это тоже ошибка авторизации
             throw new ApiError('Некорректный формат токена', 401);
         }
 
-        const { userId, username, email, role, avatarUrl, iat } = validationResult.data;
+        const { userId } = validationResult.data;
 
-        // Создаем ClientUser из JWT данных используя новый mapper
-        const clientUser = createClientUserFromPartial({
-            id: userId,
-            username,
-            email,
-            role,
-            avatarUrl: avatarUrl || null,
-            createdAt: new Date(iat * 1000), // Приблизительное значение из токена
-            updatedAt: new Date(iat * 1000), // Приблизительное значение из токена
-            isVerified: true,
+        // Получаем самые свежие данные пользователя из БД
+        const user = await prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
         });
 
-        const parsedUser = clientUserSchema.parse(clientUser);
-
-        return NextResponse.json({ user: parsedUser }, { status: 200 });
-    } catch (error) {
-        if (error instanceof ApiError) {
-            return handleApiError(error);
+        if (!user) {
+            // Если пользователь с таким ID из токена не найден в БД, это критическая ошибка синхронизации
+            // и токен следует считать невалидным.
+            const errResponse = NextResponse.json(
+                { message: 'Пользователь не найден', error: 'UserNotFound' },
+                { status: 401 }
+            );
+            errResponse.cookies.set(AUTH_TOKEN_COOKIE_NAME, '', { maxAge: 0 });
+            return errResponse;
         }
+
+        // Преобразуем данные из Prisma в клиентский формат
+        const clientUser = toClientUser(user);
+
+        return NextResponse.json({ user: clientUser }, { status: 200 });
+    } catch (error) {
+        // Обработка ошибок ApiError для корректных HTTP-ответов
+        if (error instanceof ApiError) {
+            const response = NextResponse.json(
+                { message: error.message, error: error.name }, // Используем error.name для кода ошибки
+                { status: error.status }
+            );
+            // Если ошибка связана с аутентификацией, удаляем cookie
+            if (error.status === 401) {
+                response.cookies.set(AUTH_TOKEN_COOKIE_NAME, '', { maxAge: 0 });
+            }
+            return response;
+        }
+        // Обработка остальных (непредвиденных) ошибок
         return handleApiError(error, { message: 'Ошибка при получении данных пользователя' });
     }
 }

@@ -13,9 +13,7 @@ interface AuthRedirectLinkProps {
 export function AuthRedirectLink({ text, linkText, href }: AuthRedirectLinkProps) {
     return (
         <Box sx={{ textAlign: 'center', mt: 2 }}>
-            {' '}
-            {/* Добавил mt: 2 для небольшого отступа сверху, если нужно*/}
-            <Link component={NextLink} href={href} variant="body2">
+            <Link component={NextLink} href={href} variant="body2" color="primary">
                 {text} {linkText}
             </Link>
         </Box>

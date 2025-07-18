@@ -9,7 +9,9 @@
         "baseUrl": ".",
         "paths": {
             "@chat-app/server-shared": ["../server-shared/dist"],
-            "@chat-app/server-shared/*": ["../server-shared/dist/*"]
+            "@chat-app/server-shared/*": ["../server-shared/dist/*"],
+            "@chat-app/core": ["../core/dist"],
+            "@chat-app/core/*": ["../core/dist/*"]
         }
     },
     "include": ["src/**/*.ts"],
