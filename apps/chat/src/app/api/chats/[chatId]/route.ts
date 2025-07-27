@@ -27,12 +27,6 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
         }
 
         const { chatId } = await params;
-        const limitParam = req.nextUrl.searchParams.get('limit');
-        const limit = limitParam ? parseInt(limitParam, 10) : 50;
-
-        if (isNaN(limit) || limit <= 0) {
-            throw new ApiError('Некорректное значение для параметра limit', 400);
-        }
 
         if (!chatId) {
             throw new ApiError('Необходим ID чата', 400);
@@ -86,12 +80,10 @@ export async function GET(req: NextRequest, { params }: GetChatParams) {
         const unreadCount = chatFromDb._count?.messages ?? 0;
 
         // Используем mapper из core для создания правильного объекта
-        const chatWithDetails: ChatWithDetails = toChatWithDetailsFromPartial(
-            chatFromDb,
-            currentUser.id,
-            undefined, // lastMessage не загружается в этом эндпоинте
-            unreadCount
-        );
+        const chatWithDetails: ChatWithDetails = toChatWithDetailsFromPartial({
+            prismaChat: chatFromDb,
+            currentUserId: currentUser.id,
+        });
 
         return NextResponse.json({ chat: chatWithDetails });
     } catch (error) {

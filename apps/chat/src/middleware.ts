@@ -21,8 +21,7 @@ import {
     IGNORED_API_PREFIXES,
     LOGIN_PAGE_ROUTE,
     PUBLIC_ROUTES,
-} from '@chat-app/constants-edge';
-
+} from '@chat-app/core';
 
 import { type JWTPayload, jwtVerify } from 'jose';
 

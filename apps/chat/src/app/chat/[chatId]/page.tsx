@@ -18,6 +18,7 @@ interface ChatPageProps {
 export default async function ChatPage({ params }: ChatPageProps) {
     const { chatId } = await params;
     const currentUser = await getCurrentUserFromSessionCookie();
+
     if (!currentUser) {
         redirect(LOGIN_PAGE_ROUTE);
     }

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Базовые схемы для валидации
-export const idSchema = z.string().cuid();
+export const idSchema = z.cuid();
 export const timestampSchema = z.date();
 export const sortOrderSchema = z.enum(['asc', 'desc']);
 
@@ -86,11 +86,11 @@ export const webSocketEventSchema = <T extends z.ZodTypeAny>(payloadSchema: T) =
 export const notificationTypeSchema = z.enum(['info', 'success', 'warning', 'error']);
 
 export const notificationSchema = z.object({
-    id: z.string().cuid(),
+    id: z.cuid(),
     type: notificationTypeSchema,
     title: z.string(),
     message: z.string().optional(),
     duration: z.number().optional(),
     persistent: z.boolean().optional(),
-    createdAt: z.date(),
+    createdAt: z.coerce.date(),
 });

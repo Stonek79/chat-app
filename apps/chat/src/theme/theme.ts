@@ -1,63 +1,77 @@
-import { createTheme } from '@mui/material/styles';
-import { TELEGRAM_THEME_COLORS } from '@chat-app/core';
+'use client';
 
-// Расширяем PaletteOptions, чтобы TypeScript знал о наших кастомных цветах
+import { createTheme, type ThemeOptions } from '@mui/material/styles';
+import { Roboto } from 'next/font/google';
+
+// 1. Определяем структуру наших кастомных цветов.
+interface ChatColors {
+    myMessageBackground: string;
+    otherMessageBackground: string;
+    chatBackground: string;
+}
+
+// 2. Расширяем интерфейсы Theme и ThemeOptions, добавляя `chat` в корень.
 declare module '@mui/material/styles' {
-    interface Palette {
-        msgInBg?: string;
-        msgOutBg?: string;
+    interface Theme {
+        chat: ChatColors;
     }
-    interface PaletteOptions {
-        msgInBg?: string;
-        msgOutBg?: string;
+    interface ThemeOptions {
+        chat?: ChatColors;
     }
 }
 
-const commonComponents = {
-    MuiButton: {
-        styleOverrides: {
-            root: {
-                borderRadius: 8,
+const roboto = Roboto({
+    weight: ['300', '400', '500', '700'],
+    subsets: ['latin'],
+    display: 'swap',
+});
+
+const commonSettings: ThemeOptions = {
+    typography: {
+        fontFamily: roboto.style.fontFamily,
+    },
+    components: {
+        MuiButtonBase: {
+            defaultProps: {
+                disableRipple: true,
             },
         },
     },
 };
 
-export const darkTheme = createTheme({
-    palette: {
-        mode: 'dark',
-        background: {
-            default: TELEGRAM_THEME_COLORS.dark.windowBg,
-            paper: TELEGRAM_THEME_COLORS.dark.msgInBg,
-        },
-        primary: {
-            main: TELEGRAM_THEME_COLORS.dark.dialogsSentIconFgActive,
-        },
-        text: {
-            primary: TELEGRAM_THEME_COLORS.dark.historyTextInFg,
-            secondary: '#a9a9a9',
-        },
-        msgInBg: TELEGRAM_THEME_COLORS.dark.msgInBg,
-        msgOutBg: TELEGRAM_THEME_COLORS.dark.msgOutBg,
-    },
-    components: commonComponents,
-});
-
+// 3. Создаем темы, добавляя объект `chat` на верхний уровень.
 export const lightTheme = createTheme({
+    ...commonSettings,
     palette: {
         mode: 'light',
-        // TODO: Заполнить цветами из светлой темы Telegram
+        primary: { main: '#1976d2' },
         background: {
             default: '#f0f2f5',
             paper: '#ffffff',
         },
-        primary: {
-            main: '#1976d2',
-        },
-        text: {
-            primary: '#000000',
-            secondary: '#657786',
+    },
+    // Наши кастомные цвета теперь находятся здесь, в корне темы.
+    chat: {
+        myMessageBackground: '#BEE3FF',
+        otherMessageBackground: '#FFFFFF',
+        chatBackground: '#ECE5DD',
+    },
+});
+
+export const darkTheme = createTheme({
+    ...commonSettings,
+    palette: {
+        mode: 'dark',
+        primary: { main: '#90caf9' },
+        background: {
+            default: '#0a0a0a',
+            paper: '#1a1a1a',
         },
     },
-    components: commonComponents,
+    // Наши кастомные цвета теперь находятся здесь, в корне темы.
+    chat: {
+        myMessageBackground: '#4A4AFF',
+        otherMessageBackground: '#212121',
+        chatBackground: '#0E1621',
+    },
 });

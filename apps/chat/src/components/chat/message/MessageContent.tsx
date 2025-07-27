@@ -12,15 +12,14 @@ export const MessageContent = ({ message, isCurrentUser }: MessageContentProps) 
     const theme = useTheme();
 
     const bubbleStyles = {
-        padding: '8px 12px',
         width: 'fit-content',
+        height: '100%',
         maxWidth: '100%',
         backgroundColor: isCurrentUser
             ? (theme.palette as any).msgOutBg
             : (theme.palette as any).msgInBg,
         color: theme.palette.text.primary,
         borderRadius: '12px',
-        alignSelf: isCurrentUser ? 'flex-end' : 'flex-start',
     };
 
     const renderContent = () => {

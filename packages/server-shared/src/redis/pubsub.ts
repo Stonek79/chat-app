@@ -9,7 +9,7 @@ export async function publishNotification(channel: string, message: unknown): Pr
         const pubClient = getRedisClient();
         const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
         await pubClient.publish(channel, messageStr);
-        // console.log(`[Redis PubSub] Published to channel ${channel}:`, message);
+        console.log(`[Redis PubSub] Published to channel ${channel}:`, message);
     } catch (error) {
         console.error(`[Redis PubSub] Error publishing to channel ${channel}:`, error);
         throw error;

@@ -5,9 +5,14 @@ import type { FormEvent } from 'react';
 import { Box, IconButton, InputBase } from '@mui/material';
 import { AttachFile, Send } from '@mui/icons-material';
 import MoodIcon from '@mui/icons-material/Mood';
+import { DisplayMessage } from '@chat-app/core';
+import { useEffect, useRef } from 'react';
 
 interface MessageInputProps {
     onSendMessage: (content: string) => void;
+    onEditMessage: (messageId: string, content: string) => void;
+    onCancelEdit: () => void;
+    messageToEdit: DisplayMessage | null;
     isConnected: boolean;
 }
 
@@ -15,18 +20,42 @@ interface FormValues {
     message: string;
 }
 
-export const MessageInput = ({ onSendMessage, isConnected }: MessageInputProps) => {
-    const { handleSubmit, control, reset, watch } = useForm<FormValues>({
+export const MessageInput = ({
+    onSendMessage,
+    isConnected,
+    onEditMessage,
+    onCancelEdit,
+    messageToEdit,
+}: MessageInputProps) => {
+    const { handleSubmit, control, reset, watch, setValue } = useForm<FormValues>({
         defaultValues: {
             message: '',
         },
     });
 
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (messageToEdit) {
+            setValue('message', messageToEdit.content);
+            // focus on input
+            inputRef.current?.focus();
+        } else {
+            setValue('message', '');
+        }
+    }, [messageToEdit, setValue]);
+
     const messageValue = watch('message');
 
     const onSubmit = (data: FormValues) => {
         if (data.message.trim()) {
-            onSendMessage(data.message.trim());
+            if (messageToEdit) {
+                // Если редактируем, вызываем onEditMessage
+                onEditMessage(messageToEdit.id, data.message.trim());
+            } else {
+                // Иначе - onSendMessage
+                onSendMessage(data.message.trim());
+            }
             reset();
         }
     };
@@ -65,6 +94,7 @@ export const MessageInput = ({ onSendMessage, isConnected }: MessageInputProps) 
                     render={({ field }) => (
                         <InputBase
                             {...field}
+                            ref={inputRef}
                             sx={{ flex: 1 }}
                             placeholder="Write a message..."
                             disabled={!isConnected}

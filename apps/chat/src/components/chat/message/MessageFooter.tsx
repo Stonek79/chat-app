@@ -10,12 +10,12 @@ import { MessageStatusIcon } from './MessageStatusIcon';
 interface MessageFooterProps {
     message: Pick<
         DisplayMessage,
-        'createdAt' | 'isEdited' | 'readReceipts' | 'isCurrentUser' | 'sender'
+        'createdAt' | 'updatedAt' | 'isEdited' | 'readReceipts' | 'isCurrentUser' | 'sender'
     >;
-    currentUserId: string;
     isCurrentUser: boolean;
-    isDeleted: boolean;
     participantsCount: number;
+    isGroupChat: boolean;
+    isMobile: boolean;
 }
 
 const formatTime = (date: Date | string) => {
@@ -29,14 +29,11 @@ const formatTime = (date: Date | string) => {
 
 export const MessageFooter = ({
     message,
-    currentUserId,
     isCurrentUser,
-    isDeleted,
     participantsCount,
+    isGroupChat,
+    isMobile,
 }: MessageFooterProps) => {
-    const readByCount = message.readReceipts?.length ?? 0;
-    const isReadByAll = readByCount >= participantsCount - 1;
-
     return (
         <Box
             sx={{
@@ -46,7 +43,7 @@ export const MessageFooter = ({
                 mt: 0.5,
             }}
         >
-            {isCurrentUser && !isDeleted && (
+            {isCurrentUser && !isGroupChat && !isMobile && (
                 <MessageStatusIcon
                     message={message}
                     currentUserId={message.sender.id}
@@ -69,7 +66,14 @@ export const MessageFooter = ({
                         (изм.)
                     </Typography>
                 )}
-                {formatTime(message.createdAt)}
+                {formatTime(message.updatedAt)}
+                {isCurrentUser && !isGroupChat && isMobile && (
+                    <MessageStatusIcon
+                        message={message}
+                        currentUserId={message.sender.id}
+                        participantsCount={participantsCount}
+                    />
+                )}
             </Typography>
         </Box>
     );

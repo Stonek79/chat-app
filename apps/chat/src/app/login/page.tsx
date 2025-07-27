@@ -4,20 +4,13 @@ import Typography from '@mui/material/Typography';
 
 import { LoginForm } from '@/components';
 
-// Тип для searchParams на серверной странице
 interface LoginPageProps {
     searchParams: { [key: string]: string | string[] | undefined };
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
     const params = await searchParams;
-    console.log('LoginPage: searchParams', params);
-    const returnTo = typeof params?.returnTo === 'string' ? params?.returnTo : undefined;
     const registrationSuccess = params?.registrationSuccess === 'true';
-
-    // Блок для отображения "Перенаправление..." если пользователь уже залогинен,
-    // теперь не нужен, так как middleware должен выполнить редирект ДО загрузки этой страницы.
-    // if (auth.user && !auth.isLoading) { ... }
 
     return (
         <Container component="main" maxWidth="xs">
@@ -33,12 +26,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 <Typography component="h1" variant="h5" gutterBottom>
                     Вход в систему
                 </Typography>
-                <LoginForm
-                    returnTo={returnTo}
-                    registrationSuccess={registrationSuccess}
-                    // onLoginSuccess не передаем, так как LoginForm сам редиректит через router.push
-                    // или AuthProvider редиректит после успешного вызова auth.login()
-                />
+                <LoginForm registrationSuccess={registrationSuccess} />
             </Box>
         </Container>
     );

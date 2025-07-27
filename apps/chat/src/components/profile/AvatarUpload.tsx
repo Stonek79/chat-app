@@ -13,9 +13,8 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useAvatar } from '@/hooks/useAvatar';
-import { useAuth } from '@/hooks';
-import { ConfirmationModal } from '@/components/common/ConfirmationModal';
+import { useAvatar, useAuth } from '@/hooks';
+import { ConfirmationModal } from '../common';
 
 export const AvatarUpload = () => {
     const { user } = useAuth();

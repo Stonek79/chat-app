@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { MouseEvent, useState } from 'react';
 import type { DisplayMessage } from '@chat-app/core';
-import { ActionType } from '@chat-app/db';
+import { ChatParticipantRole } from '@chat-app/db';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { Box, IconButton, Menu, MenuItem } from '@mui/material';
 
 interface MessageActionsMenuProps {
     message: DisplayMessage;
-    isAdmin: boolean;
+    userRole: ChatParticipantRole;
+    isCurrentUserMessage: boolean;
     onEdit: () => void;
     onDelete: () => void;
 }
@@ -18,27 +19,39 @@ const MODIFY_MESSAGE_LIMIT_MS = 15 * 60 * 1000;
 
 export const MessageActionsMenu = ({
     message,
-    isAdmin,
+    userRole,
     onEdit,
     onDelete,
+    isCurrentUserMessage,
 }: MessageActionsMenuProps) => {
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 
-    const isDeleted = message.actions?.some(action => action.type === ActionType.DELETED);
+    const isAdminOrOwner =
+        userRole === ChatParticipantRole.ADMIN || userRole === ChatParticipantRole.OWNER;
 
-    const canModifyMessage = () => {
-        if (isDeleted) return false;
-        if (message.contentType === 'SYSTEM') return false;
-        if (isAdmin) return true;
-        if (message.isCurrentUser) {
+    const canEdit = () => {
+        if (!isAdminOrOwner) {
             const messageTime = new Date(message.createdAt).getTime();
             const now = new Date().getTime();
             return now <= messageTime + MODIFY_MESSAGE_LIMIT_MS;
         }
-        return false;
+
+        return true;
     };
 
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    const canDelete = () => {
+        // Админ или владелец чата могут удалить любое сообщение
+        if (isAdminOrOwner) return true;
+
+        // Автор может удалить свое сообщение
+        return isCurrentUserMessage;
+    };
+
+    if (!canEdit() && !canDelete()) {
+        return null;
+    }
+
+    const handleMenuOpen = (event: MouseEvent<HTMLElement>) => {
         setMenuAnchorEl(event.currentTarget);
     };
 
@@ -55,10 +68,6 @@ export const MessageActionsMenu = ({
         onDelete();
         handleMenuClose();
     };
-
-    if (!canModifyMessage()) {
-        return null;
-    }
 
     return (
         <Box className="message-actions-menu">
@@ -83,10 +92,12 @@ export const MessageActionsMenu = ({
                     },
                 }}
             >
-                <MenuItem onClick={handleEdit}>Изменить</MenuItem>
-                <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
-                    Удалить
-                </MenuItem>
+                {canEdit() && <MenuItem onClick={handleEdit}>Изменить</MenuItem>}
+                {canDelete() && (
+                    <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+                        Удалить
+                    </MenuItem>
+                )}
             </Menu>
         </Box>
     );

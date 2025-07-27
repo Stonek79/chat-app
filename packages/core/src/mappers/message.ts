@@ -1,5 +1,10 @@
-import { UserRole } from '@chat-app/db';
-import type { PrismaMessageForDisplay, DisplayMessage, MessagePayload } from '../types/message';
+import type {
+    PrismaMessageForDisplay,
+    DisplayMessage,
+    MessagePayload,
+    MessageActionWithActor,
+    ClientMessageAction,
+} from '../types/message';
 import { toClientUser } from './user';
 
 /**
@@ -7,7 +12,7 @@ import { toClientUser } from './user';
  */
 export function toDisplayMessage(
     prismaMessage: PrismaMessageForDisplay,
-    currentUserId: string
+    currentUserId: string,
 ): DisplayMessage {
     const sender = toClientUser(prismaMessage.sender);
     const readReceipts = (prismaMessage.readReceipts || []).map(receipt => ({
@@ -29,17 +34,25 @@ export function toDisplayMessage(
           }
         : undefined;
 
-    const isCurrentUser = prismaMessage.senderId === currentUserId;
-
     return {
-        ...prismaMessage,
+        id: prismaMessage.id,
+        chatId: prismaMessage.chatId,
+        senderId: prismaMessage.senderId,
+        content: prismaMessage.content,
+        mediaUrl: prismaMessage.mediaUrl,
+        contentType: prismaMessage.contentType,
+        createdAt: prismaMessage.createdAt,
+        updatedAt: prismaMessage.updatedAt,
+        isEdited: prismaMessage.isEdited,
+        isPinned: prismaMessage.isPinned, // Теперь это поле будет доступно
+        status: prismaMessage.status,
+        replyToMessageId: prismaMessage.replyToMessageId,
+        forwardedFromMessageId: prismaMessage.forwardedFromMessageId,
         sender,
         readReceipts,
         actions,
         replyTo,
-        isCurrentUser,
-        canEdit: isCurrentUser && !prismaMessage.deletedAt,
-        canDelete: isCurrentUser,
+        isCurrentUser: prismaMessage.senderId === currentUserId,
     };
 }
 
@@ -55,21 +68,34 @@ export function convertMessagePayloadToDisplayMessage(
         chatId: payload.chatId,
         senderId: payload.sender.id,
         content: payload.content,
-        mediaUrl: null,
+        mediaUrl: null, // В payload нет mediaUrl
         contentType: payload.contentType,
         createdAt: payload.createdAt,
         updatedAt: payload.updatedAt,
-        deletedAt: null, // MessagePayload не содержит deletedAt
-        isEdited: false, // MessagePayload не содержит isEdited
-        status: 'SENT', // Значение по умолчанию
-        replyToMessageId: null, // MessagePayload не содержит replyToMessageId
-        forwardedFromMessageId: null, // MessagePayload не содержит forwardedFromMessageId
+        isEdited: false, // Новое сообщение не может быть отредактировано
+        isPinned: false, // Новое сообщение не может быть закреплено
+        status: 'SENT', 
+        replyToMessageId: null, 
+        forwardedFromMessageId: null, 
         sender: payload.sender,
         readReceipts: payload.readReceipts || [],
         actions: payload.actions || [],
         replyTo: undefined,
         isCurrentUser,
-        canEdit: isCurrentUser,
-        canDelete: isCurrentUser,
+    };
+}
+
+export function toClientMessageAction(action: MessageActionWithActor): ClientMessageAction {
+    // Prisma возвращает User, а нужен ClientUser
+    const clientActor = toClientUser(action.actor);
+
+    return {
+        id: action.id,
+        type: action.type,
+        messageId: action.messageId,
+        actorId: action.actorId,
+        actor: clientActor,
+        createdAt: action.createdAt,
+        newContent: action.newContent || null,
     };
 }

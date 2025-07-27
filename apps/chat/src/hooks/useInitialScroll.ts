@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 interface UseInitialScrollProps {
     chatId: string | null;
     initialMessagesLoaded: boolean;
-    firstUnreadId: string | null;
+    lastReadMessageId: string | null;
     messagesContainerRef: React.RefObject<HTMLElement | null>;
     getMessageRef: (id: string) => HTMLElement | undefined;
     messagesEndRef: React.RefObject<HTMLElement | null>;
@@ -14,7 +14,7 @@ interface UseInitialScrollProps {
 export const useInitialScroll = ({
     chatId,
     initialMessagesLoaded,
-    firstUnreadId,
+    lastReadMessageId,
     messagesContainerRef,
     getMessageRef,
     messagesEndRef,
@@ -37,10 +37,10 @@ export const useInitialScroll = ({
         };
 
         const timer = setTimeout(() => {
-            if (firstUnreadId) {
-                const unreadElement = getMessageRef(firstUnreadId);
+            if (lastReadMessageId) {
+                const unreadElement = getMessageRef(lastReadMessageId);
                 if (unreadElement) {
-                    console.log('[Scroll] Scrolling to first unread message:', firstUnreadId);
+                    console.log('[Scroll] Scrolling to first unread message:', lastReadMessageId);
                     scrollTo(unreadElement);
                     return;
                 }
@@ -48,14 +48,15 @@ export const useInitialScroll = ({
 
             if (messagesEndRef.current) {
                 console.log('[Scroll] No unread messages found, scrolling to bottom.');
-                scrollTo(messagesEndRef.current);
+                messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+                hasScrolledRef.current = true;
             }
         }, 100); // Небольшая задержка, чтобы убедиться, что все элементы отрендерились
 
         return () => clearTimeout(timer);
     }, [
         initialMessagesLoaded,
-        firstUnreadId,
+        lastReadMessageId,
         chatId,
         messagesContainerRef,
         getMessageRef,

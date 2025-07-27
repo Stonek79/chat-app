@@ -3,11 +3,18 @@
 import { useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from './useAuth';
-import { API_FILES_AVATAR_ROUTE, ERROR_MESSAGES, UI_MESSAGES } from '@chat-app/core';
+import {
+    API_AUTH_ME_ROUTE,
+    API_FILES_AVATAR_ROUTE,
+    ERROR_MESSAGES,
+    UI_MESSAGES,
+} from '@chat-app/core';
 import type { AuthResponse } from '@chat-app/core';
+import useSWR from 'swr';
 
 export const useAvatar = () => {
-    const { user, mutate } = useAuth();
+    const { user } = useAuth();
+    const { mutate } = useSWR(API_AUTH_ME_ROUTE);
     const [isUploading, setIsUploading] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -37,7 +44,7 @@ export const useAvatar = () => {
             try {
                 setIsUploading(true);
                 await mutate(uploadPromise, {
-                    optimisticData: currentData => {
+                    optimisticData: (currentData: AuthResponse | null) => {
                         if (!currentData) return null;
                         return {
                             ...currentData,
@@ -80,7 +87,7 @@ export const useAvatar = () => {
         try {
             setIsDeleting(true);
             await mutate(deletePromise, {
-                optimisticData: currentData => {
+                optimisticData: (currentData: AuthResponse | null) => {
                     if (!currentData) return null;
                     return { ...currentData, user: { ...currentData.user, avatarUrl: null } };
                 },

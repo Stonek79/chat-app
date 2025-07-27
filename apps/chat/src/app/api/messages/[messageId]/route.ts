@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomBytes } from 'crypto';
-import type { ClientMessageAction } from '@chat-app/core';
-import { REDIS_EVENT_MESSAGE_DELETED } from '@chat-app/core';
+import {
+    editMessageSchema,
+    MESSAGE_DELETION_WINDOW_MINUTES,
+    REDIS_EVENT_MESSAGE_DELETED,
+    REDIS_EVENT_MESSAGE_EDITED,
+    REDIS_SOCKET_NOTIFICATIONS_CHANNEL,
+    toClientMessageAction,
+    toDisplayMessage,
+} from '@chat-app/core';
 import { ChatParticipantRole, ActionType, UserRole } from '@chat-app/db';
-
 import { getCurrentUser, prisma } from '@/lib';
-
-const MESSAGE_DELETION_WINDOW_MINUTES = 15;
+import { publishNotification } from '@chat-app/server-shared';
+import { deleteFile } from '@chat-app/media-storage';
 
 /**
  * DELETE /api/messages/[messageId]
- * Создает запись о "мягком" удалении сообщения
+ * Необратимо удаляет сообщение (Hard Delete).
  */
 export async function DELETE(req: NextRequest, { params }: { params: { messageId: string } }) {
     try {
@@ -35,9 +40,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { messageId
                         participants: true,
                     },
                 },
-                actions: {
-                    where: { type: ActionType.DELETED },
-                },
             },
         });
 
@@ -45,82 +47,170 @@ export async function DELETE(req: NextRequest, { params }: { params: { messageId
             return NextResponse.json({ error: 'Message not found' }, { status: 404 });
         }
 
-        // Проверяем, не удалено ли уже
-        if (message.actions.length > 0) {
-            return NextResponse.json({ error: 'Message already deleted' }, { status: 400 });
-        }
-
         // 2. Проверить права на удаление
         const userParticipant = message.chat.participants.find(p => p.userId === currentUserId);
-        if (!userParticipant) {
-            return NextResponse.json(
-                { error: 'You are not a member of this chat' },
-                { status: 403 }
-            );
-        }
+        const isAdminOrOwner =
+            currentUser.role === UserRole.ADMIN ||
+            userParticipant?.role === ChatParticipantRole.ADMIN ||
+            userParticipant?.role === ChatParticipantRole.OWNER;
 
         const isAuthor = message.senderId === currentUserId;
-        const isAdmin = currentUser.role === UserRole.ADMIN;
-        const isChatOwner = userParticipant.role === ChatParticipantRole.OWNER;
-        const isTimeWindowOk =
-            (new Date().getTime() - new Date(message.createdAt).getTime()) / (1000 * 60) <
-            MESSAGE_DELETION_WINDOW_MINUTES;
 
-        const canDelete = isAdmin || isChatOwner || (isAuthor && isTimeWindowOk);
-
-        if (!canDelete) {
+        if (!isAuthor || !isAdminOrOwner) {
             return NextResponse.json(
                 { error: 'You do not have permission to delete this message' },
                 { status: 403 }
             );
         }
 
-        // 3. Создать запись о действии "удаление"
-        const deleteAction = await prisma.messageAction.create({
-            data: {
-                id: randomBytes(16).toString('hex'),
-                type: ActionType.DELETED,
-                messageId: messageId,
-                actorId: currentUserId,
-            },
-            include: {
-                actor: {
-                    select: {
-                        id: true,
-                        username: true,
-                        email: true,
-                        avatarUrl: true,
-                        role: true,
-                    },
-                },
-            },
+        // 3. Атомарная транзакция для удаления
+        await prisma.$transaction(async tx => {
+            // 3.1. Обнулить ссылки на это сообщение у других сообщений
+            await tx.message.deleteMany({
+                where: { replyTo: { id: messageId } },
+            });
+
+            // 3.2. Физически удалить связанные файлы (если есть)
+            if (message.mediaUrl) {
+                // `deleteFile` должна обработать ошибку, если файл не найден,
+                // но прервать транзакцию, если удаление не удалось по другой причине.
+                await deleteFile(message.mediaUrl);
+            }
+
+            // 3.3. Физически удалить сообщение
+            await tx.message.delete({
+                where: { id: messageId },
+            });
         });
 
         // 4. Оповестить socket-server через Redis
-        // Убираем поля, которых нет в ClientMessageAction
-        const clientAction: ClientMessageAction = {
-            id: deleteAction.id,
-            type: deleteAction.type,
-            messageId: deleteAction.messageId,
-            actorId: deleteAction.actorId,
-            actor: deleteAction.actor,
-            createdAt: deleteAction.createdAt,
-            newContent: null,
-        };
-
         const notificationPayload = {
             type: REDIS_EVENT_MESSAGE_DELETED,
             data: {
                 chatId: message.chatId,
                 messageId: message.id,
-                action: clientAction,
             },
         };
-        // await publishNotification(REDIS_SOCKET_NOTIFICATIONS_CHANNEL, notificationPayload);
+        await publishNotification(REDIS_SOCKET_NOTIFICATIONS_CHANNEL, notificationPayload);
 
-        return NextResponse.json(deleteAction, { status: 200 });
+        return NextResponse.json({ success: true }, { status: 200 });
     } catch (error) {
         console.error('Error deleting message:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+/**
+ * PATCH /api/messages/[messageId]
+ * Редактирует существующее сообщение.
+ */
+export async function PATCH(req: NextRequest, { params }: { params: { messageId: string } }) {
+    try {
+        const currentUser = await getCurrentUser(req);
+        if (!currentUser?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { messageId } = await params;
+        if (!messageId) {
+            return NextResponse.json({ error: 'Message ID is required' }, { status: 400 });
+        }
+
+        const body = await req.json();
+        const dataToValidate = {
+            ...body,
+            messageId,
+        };
+
+        const validationResult = editMessageSchema.safeParse(dataToValidate);
+
+        if (!validationResult.success) {
+            return NextResponse.json(
+                { error: 'Invalid data', details: validationResult.error },
+                { status: 400 }
+            );
+        }
+
+        const { content } = validationResult.data;
+        const currentUserId = currentUser.id;
+
+        // 1. Найти сообщение для проверки прав
+        const message = await prisma.message.findUnique({
+            where: { id: messageId },
+        });
+
+        if (!message) {
+            return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+        }
+
+        // 2. Проверить права на редактирование
+        const isAuthor = message.senderId === currentUserId;
+        const isTimeWindowOk =
+            (new Date().getTime() - new Date(message.createdAt).getTime()) / (1000 * 60) <
+            MESSAGE_DELETION_WINDOW_MINUTES;
+
+        const isAdmin = currentUser.role === UserRole.ADMIN;
+
+        // Только автор может редактировать, и только в пределах временного окна
+        if (!isAdmin || (!isTimeWindowOk && !isAuthor)) {
+            return NextResponse.json(
+                { error: 'You do not have permission to edit this message' },
+                { status: 403 }
+            );
+        }
+
+        // 3. Создать запись о действии "редактирование"
+        const { updatedMessage } = await prisma.$transaction(async tx => {
+            // 3.1. Создаем запись о действии "редактирование"
+            const action = await tx.messageAction.create({
+                data: {
+                    type: ActionType.EDITED,
+                    messageId: messageId,
+                    actorId: currentUserId,
+                    newContent: content,
+                },
+                include: { actor: true },
+            });
+
+            // 3.2. Обновляем само сообщение, чтобы оно содержало актуальный контент
+            const message = await tx.message.update({
+                where: { id: messageId },
+                data: { content: content, isEdited: true },
+                include: {
+                    sender: true,
+                    actions: {
+                        include: { actor: true },
+                        orderBy: { createdAt: 'desc' },
+                    },
+                    readReceipts: {
+                        include: {
+                            user: true,
+                        },
+                    },
+                    replyTo: {
+                        include: {
+                            sender: true,
+                        },
+                    },
+                },
+            });
+
+            return { updatedMessage: message, editAction: action };
+        });
+
+        // 4. Формируем и отправляем уведомление
+        const displayMessage = toDisplayMessage(updatedMessage, currentUserId);
+
+        const notificationPayload = {
+            type: REDIS_EVENT_MESSAGE_EDITED,
+            data: displayMessage, // Отправляем полный обновленный объект
+        };
+
+        await publishNotification(REDIS_SOCKET_NOTIFICATIONS_CHANNEL, notificationPayload);
+
+        return NextResponse.json(displayMessage, { status: 200 });
+    } catch (error) {
+        console.error('Error editing message:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

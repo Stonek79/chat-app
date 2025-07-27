@@ -1,17 +1,21 @@
 'use client';
 
+import useSWR from 'swr';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { LOGIN_PAGE_ROUTE, createUserSchema, RegisterCredentials } from '@chat-app/core';
+import {
+    LOGIN_PAGE_ROUTE,
+    createUserSchema,
+    RegisterCredentials,
+    API_AUTH_ME_ROUTE,
+} from '@chat-app/core';
 import Box from '@mui/material/Box';
-
-import { useAuth } from '@/hooks';
-
+import { register } from '@/lib/auth/actions';
 import { AuthErrorAlert, AuthRedirectLink, SubmitButton } from './common';
 import { EmailField, PasswordField, UsernameField } from './fields';
 
 export function RegisterForm() {
-    const { register: registerUser, isLoading } = useAuth();
+    const { isLoading } = useSWR(API_AUTH_ME_ROUTE);
 
     const {
         control,
@@ -28,7 +32,7 @@ export function RegisterForm() {
     const onSubmit = async (data: RegisterCredentials) => {
         try {
             clearErrors();
-            await registerUser(data);
+            await register(data);
         } catch (error: any) {
             const serverErrors = error.errors || {};
             Object.keys(serverErrors).forEach(key => {
@@ -100,7 +104,7 @@ export function RegisterForm() {
                     />
                 )}
             />
-            <AuthErrorAlert />
+            <AuthErrorAlert errors={errors} />
             <SubmitButton isLoading={isLoading} loadingText="Регистрация...">
                 Зарегистрироваться
             </SubmitButton>

@@ -1,6 +1,6 @@
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 import type { Socket as ClientSocket } from 'socket.io-client';
-import type { SessionData, ChatWithDetails, MessagePayload } from '@chat-app/core';
+import type { SessionData, ChatWithDetails, MessagePayload, ClientMessageAction } from '@chat-app/core';
 import type {
     SocketUserPresencePayload,
     GeneralSocketErrorPayload,
@@ -8,6 +8,7 @@ import type {
     MessagesReadPayload,
     ClientSendMessagePayload,
     MessageDeletedPayload,
+    MessageEditedPayload,
 } from './payloads';
 
 // Импорт констант событий Socket.IO
@@ -21,8 +22,9 @@ import {
     CLIENT_EVENT_JOIN_CHAT,
     CLIENT_EVENT_LEAVE_CHAT,
     CLIENT_EVENT_SEND_MESSAGE,
-    CLIENT_EVENT_DELETE_MESSAGE,
+    CLIENT_EVENT_EDIT_MESSAGE,
     CLIENT_EVENT_MARK_AS_READ,
+    SERVER_EVENT_MESSAGE_EDITED,
 } from '../constants/events';
 
 /**
@@ -42,6 +44,7 @@ export interface ServerToClientEvents {
     [SERVER_EVENT_MESSAGES_READ]: (payload: MessagesReadPayload) => void;
     [SERVER_EVENT_USER_JOINED]: (payload: SocketUserPresencePayload) => void;
     [SERVER_EVENT_USER_LEFT]: (payload: SocketUserPresencePayload) => void;
+    [SERVER_EVENT_MESSAGE_EDITED]: (payload: MessageEditedPayload) => void;
     error: (payload: GeneralSocketErrorPayload) => void;
 }
 
@@ -55,8 +58,12 @@ export interface ClientToServerEvents {
         message: ClientSendMessagePayload,
         ack?: (response: SendMessageAckResponse) => void
     ) => void;
-    [CLIENT_EVENT_DELETE_MESSAGE]: (payload: { messageId: string; chatId: string }) => void;
-    [CLIENT_EVENT_MARK_AS_READ]: (payload: { chatId: string; lastReadMessageId: string }) => void;
+    [CLIENT_EVENT_EDIT_MESSAGE]: (payload: {
+        chatId: string;
+        messageId: string;
+        action: ClientMessageAction;
+    }) => void;
+    [CLIENT_EVENT_MARK_AS_READ]: (payload: { chatId: string; messageId: string }) => void;
 }
 
 /**

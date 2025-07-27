@@ -2,13 +2,20 @@ import {
     CHAT_NAMESPACE,
     SERVER_EVENT_CHAT_CREATED,
     SERVER_EVENT_MESSAGE_DELETED,
+    SERVER_EVENT_MESSAGE_EDITED,
+    messageEditedPayloadSchema,
     messageDeletedPayloadSchema,
 } from '@chat-app/socket-shared';
-import type { AppSocketServer, MessageDeletedPayload } from '@chat-app/socket-shared';
+import type {
+    AppSocketServer,
+    MessageDeletedPayload,
+    MessageEditedPayload,
+} from '@chat-app/socket-shared';
 import type { ChatWithDetails } from '@chat-app/core';
 import {
     REDIS_EVENT_MESSAGE_DELETED,
     REDIS_EVENT_NEW_CHAT,
+    REDIS_EVENT_MESSAGE_EDITED,
     chatWithDetailsSchema,
 } from '@chat-app/core';
 import { getNotificationSubscriber, getServerConfig } from '@chat-app/server-shared';
@@ -21,6 +28,11 @@ const newChatNotificationSchema = z.object({
     data: chatWithDetailsSchema,
 });
 
+const messageEditedNotificationSchema = z.object({
+    type: z.literal(REDIS_EVENT_MESSAGE_EDITED),
+    data: messageEditedPayloadSchema,
+});
+
 const messageDeletedNotificationSchema = z.object({
     type: z.literal(REDIS_EVENT_MESSAGE_DELETED),
     data: messageDeletedPayloadSchema,
@@ -28,6 +40,7 @@ const messageDeletedNotificationSchema = z.object({
 
 const redisNotificationSchema = z.discriminatedUnion('type', [
     newChatNotificationSchema,
+    messageEditedNotificationSchema,
     messageDeletedNotificationSchema,
 ]);
 
@@ -58,13 +71,32 @@ function handleNewChat(io: AppSocketServer, data: ChatWithDetails) {
 }
 
 /**
+ * Обрабатывает уведомление о редактировании сообщения.
+ * @param io - Экземпляр сервера Socket.IO.
+ * @param data - Полезная нагрузка уведомления.
+ */
+function handleMessageEdited(io: AppSocketServer, data: MessageEditedPayload) {
+    const { chatId, id: messageId } = data;
+    if (chatId && messageId) {
+        console.log(
+            `[Redis Handler] Processing MESSAGE_EDITED for message ${messageId} in chat ${chatId}`
+        );
+        // Отправляем всем в комнате (чате) обновленные данные (полный DisplayMessage)
+        io.of(CHAT_NAMESPACE).to(chatId).emit(SERVER_EVENT_MESSAGE_EDITED, data);
+        console.log(`[Redis Handler] Emitted SERVER_EVENT_MESSAGE_EDITED to room ${chatId}`);
+    } else {
+        console.warn('[Redis Handler] Invalid MESSAGE_EDITED payload received:', data);
+    }
+}
+
+/**
  * Обрабатывает уведомление об удалении сообщения.
  * @param io - Экземпляр сервера Socket.IO.
  * @param data - Полезная нагрузка уведомления.
  */
 function handleMessageDeleted(io: AppSocketServer, data: MessageDeletedPayload) {
-    const { chatId, messageId, deletedAt } = data;
-    if (chatId && messageId && deletedAt) {
+    const { chatId, messageId } = data;
+    if (chatId && messageId) {
         console.log(
             `[Redis Handler] Processing MESSAGE_DELETED for message ${messageId} in chat ${chatId}`
         );
@@ -91,7 +123,7 @@ function onMessage(io: AppSocketServer, channel: string, message: string) {
         if (!validationResult.success) {
             console.warn(
                 `[Redis Handler] Invalid notification payload received. Error:`,
-                validationResult.error.flatten()
+                validationResult.error
             );
             return;
         }
@@ -104,8 +136,17 @@ function onMessage(io: AppSocketServer, channel: string, message: string) {
                 handleNewChat(io, payload.data);
                 break;
 
+            case REDIS_EVENT_MESSAGE_EDITED:
+                handleMessageEdited(io, payload.data);
+                break;
+
             case REDIS_EVENT_MESSAGE_DELETED:
                 handleMessageDeleted(io, payload.data);
+                break;
+
+            default:
+                const exhaustiveCheck: never = payload;
+                console.warn(`[Redis Handler] Unhandled event type: ${exhaustiveCheck}`);
                 break;
         }
     } catch (e) {

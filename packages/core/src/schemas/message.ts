@@ -1,99 +1,94 @@
 import { z } from 'zod';
 import { MessageContentType, ActionType } from '@chat-app/db';
 import { VALIDATION_MESSAGES, VALIDATION_RULES } from '../constants/validation';
+import { clientUserSchema } from './user';
 
 // Базовые схемы для сообщений
 export const messageSchema = z.object({
-    id: z.string().cuid(),
-    chatId: z.string().cuid(),
-    senderId: z.string().cuid(),
+    id: z.cuid(),
+    chatId: z.cuid(),
+    senderId: z.cuid(),
     content: z.string(),
-    mediaUrl: z.string().url().nullable(),
-    contentType: z.nativeEnum(MessageContentType),
-    createdAt: z.date(),
-    updatedAt: z.date(),
-    deletedAt: z.date().nullable(),
+    mediaUrl: z.url().nullable(),
+    contentType: z.enum(MessageContentType),
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
     isEdited: z.boolean(),
+    isPinned: z.boolean(),
     status: z.string(),
-    replyToMessageId: z.string().cuid().nullable(),
-    forwardedFromMessageId: z.string().cuid().nullable(),
+    replyToMessageId: z.cuid().nullable(),
+    forwardedFromMessageId: z.cuid().nullable(),
 });
 
 export const messageReadReceiptSchema = z.object({
-    id: z.string().cuid(),
-    messageId: z.string().cuid(),
-    userId: z.string().cuid(),
-    readAt: z.date(),
+    id: z.cuid(),
+    messageId: z.cuid(),
+    userId: z.cuid(),
+    readAt: z.coerce.date(),
 });
 
 export const messageActionSchema = z.object({
-    id: z.string().cuid(),
-    createdAt: z.date(),
-    messageId: z.string().cuid(),
-    actorId: z.string().cuid(),
-    type: z.nativeEnum(ActionType),
+    id: z.cuid(),
+    createdAt: z.coerce.date(),
+    messageId: z.cuid(),
+    actorId: z.cuid(),
+    type: z.enum(ActionType),
     newContent: z.string().nullable(),
 });
 
 // UI схемы для клиентских типов
 export const messageReadReceiptInfoSchema = messageReadReceiptSchema.extend({
     user: z.object({
-        id: z.string().cuid(),
+        id: z.cuid(),
         username: z.string(),
-        email: z.string().email(),
-        avatarUrl: z.string().url().nullable(),
+        email: z.email(),
+        avatarUrl: z.string().nullable(),
         role: z.string(),
     }),
 });
 
 export const messageActionInfoSchema = messageActionSchema.extend({
-    actor: z.object({
-        id: z.string().cuid(),
-        username: z.string(),
-        email: z.string().email(),
-        avatarUrl: z.string().url().nullable(),
-        role: z.string(),
-    }),
+    actor: clientUserSchema,
 });
+
+export const clientMessageActionSchema = messageActionInfoSchema;
 
 export const displayMessageSchema = messageSchema.extend({
     sender: z.object({
-        id: z.string().cuid(),
+        id: z.cuid(),
         username: z.string(),
-        email: z.string().email(),
-        avatarUrl: z.string().url().nullable(),
+        email: z.email(),
+        avatarUrl: z.string().nullable(),
         role: z.string(),
     }),
     readReceipts: z.array(messageReadReceiptInfoSchema),
     actions: z.array(messageActionInfoSchema),
     replyTo: z
         .object({
-            id: z.string().cuid(),
+            id: z.cuid(),
             content: z.string(),
-            contentType: z.nativeEnum(MessageContentType),
+            contentType: z.enum(MessageContentType),
             sender: z.object({
-                id: z.string().cuid(),
+                id: z.cuid(),
                 username: z.string(),
-                avatarUrl: z.string().url().nullable(),
+                avatarUrl: z.string().nullable(),
             }),
         })
         .optional(),
     isCurrentUser: z.boolean(),
-    canEdit: z.boolean(),
-    canDelete: z.boolean(),
 });
 
 // API схемы для отправки сообщений
 export const sendMessageSchema = z
     .object({
-        chatId: z.string().cuid(),
+        chatId: z.cuid(),
         content: z
             .string()
             .min(1, VALIDATION_MESSAGES.MESSAGE_EMPTY)
             .max(VALIDATION_RULES.MESSAGE.maxLength, VALIDATION_MESSAGES.MESSAGE_TOO_LONG),
-        contentType: z.nativeEnum(MessageContentType).default(MessageContentType.TEXT),
-        mediaUrl: z.string().url(VALIDATION_MESSAGES.INVALID_MEDIA_URL).optional(),
-        replyToMessageId: z.string().cuid().optional(),
+        contentType: z.enum(MessageContentType),
+        mediaUrl: z.url(VALIDATION_MESSAGES.INVALID_MEDIA_URL).optional(),
+        replyToMessageId: z.cuid().optional(),
     })
     .refine(
         data => {
@@ -113,48 +108,44 @@ export const sendMessageSchema = z
     );
 
 export const editMessageSchema = z.object({
-    messageId: z.string().cuid(),
+    messageId: z.cuid(),
     content: z
         .string()
         .min(1, VALIDATION_MESSAGES.MESSAGE_EMPTY)
         .max(VALIDATION_RULES.MESSAGE.maxLength, VALIDATION_MESSAGES.MESSAGE_TOO_LONG),
 });
 
-export const deleteMessageSchema = z.object({
-    messageId: z.string().cuid(),
-});
-
 export const forwardMessageSchema = z.object({
-    messageId: z.string().cuid(),
+    messageId: z.cuid(),
     chatIds: z
-        .array(z.string().cuid())
+        .array(z.cuid())
         .min(1, VALIDATION_MESSAGES.NO_CHATS_SELECTED)
         .max(10, VALIDATION_MESSAGES.TOO_MANY_CHATS_FOR_FORWARD),
 });
 
 // Схемы для статусов прочтения
 export const markAsReadSchema = z.object({
-    chatId: z.string().cuid(),
-    messageId: z.string().cuid(),
+    chatId: z.cuid(),
+    messageId: z.cuid(),
 });
 
 // Схемы для поиска и фильтрации
 export const messageSearchParamsSchema = z.object({
-    chatId: z.string().cuid(),
+    chatId: z.cuid(),
     query: z.string().optional(),
-    contentType: z.nativeEnum(MessageContentType).optional(),
-    senderId: z.string().cuid().optional(),
-    before: z.date().optional(),
+    contentType: z.enum(MessageContentType).optional(),
+    senderId: z.cuid().optional(),
+    before: z.coerce.date().optional(),
     after: z.date().optional(),
     limit: z.number().int().min(1).max(100).default(50),
     offset: z.number().int().min(0).default(0),
 });
 
 export const messagePaginationParamsSchema = z.object({
-    chatId: z.string().cuid(),
+    chatId: z.cuid(),
     limit: z.number().int().min(1).max(100).default(50),
-    before: z.string().cuid().optional(),
-    after: z.string().cuid().optional(),
+    before: z.cuid().optional(),
+    after: z.cuid().optional(),
 });
 
 // Схемы для системных сообщений
@@ -170,7 +161,7 @@ export const systemMessageTypeSchema = z.enum([
 
 export const systemMessageSchema = z.object({
     type: systemMessageTypeSchema,
-    actorId: z.string().cuid(),
-    targetUserId: z.string().cuid().optional(),
-    metadata: z.record(z.unknown()).optional(),
+    actorId: z.cuid(),
+    targetUserId: z.cuid().optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
 });

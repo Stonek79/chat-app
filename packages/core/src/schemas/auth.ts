@@ -11,27 +11,27 @@ export const authStateSchema = z.object({
 });
 
 export const sessionDataSchema = z.object({
-    userId: z.string().cuid(),
+    userId: z.cuid(),
     username: z.string(),
-    email: z.string().email(),
-    role: z.nativeEnum(UserRole),
-    avatarUrl: z.string().url().nullable(),
+    email: z.email(),
+    role: z.enum(UserRole),
+    avatarUrl: z.string().nullable(),
     iat: z.number(),
     exp: z.number(),
 });
 
 // Схема для полного JWT payload
 export const appJWTPayloadSchema = z.object({
-    userId: z.string().cuid(),
-    email: z.string().email(),
+    userId: z.cuid(),
+    email: z.email(),
     username: z.string(),
-    role: z.nativeEnum(UserRole),
-    avatarUrl: z.string().url().nullable(),
+    role: z.enum(UserRole),
+    avatarUrl: z.string().nullable(),
     iat: z.number(),
 });
 
 export const tokenPayloadSchema = z.object({
-    userId: z.string().cuid(),
+    userId: z.cuid(),
     sessionId: z.string().optional(),
 });
 
@@ -49,5 +49,5 @@ export const refreshTokenResponseSchema = z.object({
 // Схемы для JWT middleware
 export const authenticatedRequestSchema = z.object({
     user: authenticatedUserSchema,
-    sessionId: z.string().optional(),
+    sessionId: z.cuid().optional(),
 });

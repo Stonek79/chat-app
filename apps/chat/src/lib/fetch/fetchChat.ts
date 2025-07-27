@@ -1,8 +1,7 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { API_CHATS_ROUTE, PUBLIC_APP_API_URL } from '@chat-app/core';
-import { ChatWithDetails } from '@chat-app/core';
+import { API_CHATS_ROUTE, PUBLIC_APP_API_URL, chatResponseSchema } from '@chat-app/core';
 
 export const fetchChat = async (chatId: string) => {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || PUBLIC_APP_API_URL;
@@ -32,9 +31,17 @@ export const fetchChat = async (chatId: string) => {
             throw new Error(errorMessage);
         }
 
-        const { chat } = await response.json();
+        const jsonResponse = await response.json();
 
-        return chat as ChatWithDetails;
+        const parsedChat = chatResponseSchema.safeParse(jsonResponse);
+
+        if (!parsedChat.success) {
+            // Если данные не соответствуют схеме, мы узнаем об этом сразу
+            console.error('API вернуло некорректные данные для чата:', parsedChat.error);
+            throw new Error('Получены неверные данные от сервера.');
+        }
+
+        return parsedChat.data.chat;
     } catch (e) {
         console.log(e);
         throw Error();

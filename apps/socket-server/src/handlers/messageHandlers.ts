@@ -1,10 +1,8 @@
-// Удаляем импорт схемы, используем TypeScript типы
 import {
     CHAT_NAMESPACE,
     CLIENT_EVENT_MARK_AS_READ,
     CLIENT_EVENT_SEND_MESSAGE,
     SERVER_EVENT_RECEIVE_MESSAGE,
-    SERVER_EVENT_MESSAGES_READ,
 } from '@chat-app/socket-shared';
 import type { AppSocketServer, AppSocket, ClientSendMessagePayload } from '@chat-app/socket-shared';
 
@@ -118,87 +116,67 @@ async function handleSendMessage(
     }
 }
 
-async function handleMarkAsRead(
-    io: AppSocketServer,
-    socket: AppSocket,
-    payload: { chatId: string; lastReadMessageId: string }
-) {
-    const user = socket.data.user;
-    if (!user || !user.userId) {
-        console.warn(`[Messages] Unauthorized attempt to mark messages as read.`);
-        return;
-    }
+/**
+ * Обрабатывает событие прочтения сообщения пользователем.
+ * Обновляет lastReadMessageId для участника чата.
+ * @param io - Экземпляр сервера Socket.IO.
+ * @param socket - Сокет клиента.
+ * @param payload - Данные события { chatId, messageId }.
+ */
+async function handleMarkAsRead(socket: AppSocket, payload: { chatId: string; messageId: string }) {
+    const { user } = socket.data;
+    if (!user) return;
 
-    const { chatId, lastReadMessageId } = payload;
-    const currentReadTime = new Date();
+    const { chatId, messageId } = payload;
 
     try {
-        const potentialMessages = await prisma.message.findMany({
-            where: {
-                chatId: chatId,
-                id: { lte: lastReadMessageId },
-                senderId: { not: user.userId },
-            },
-            select: { id: true },
+        // 1. Находим сообщение, которое пользователь пометил как прочитанное
+        const newMessage = await prisma.message.findUnique({
+            where: { id: messageId },
+            select: { createdAt: true },
         });
 
-        if (potentialMessages.length === 0) {
-            return;
+        if (!newMessage) return;
+
+        // 2. Находим участника, чтобы получить ID его ТЕКУЩЕГО последнего прочитанного сообщения
+        const participant = await prisma.chatParticipant.findUnique({
+            where: { chatId_userId: { chatId, userId: user.userId } },
+            select: { id: true, lastReadMessageId: true },
+        });
+
+        if (!participant) return;
+
+        // 3. Если у него уже есть lastReadMessageId, делаем второй запрос, чтобы получить ДАТУ этого сообщения
+        let lastReadDate: Date | null = null;
+        if (participant.lastReadMessageId) {
+            const lastReadMessage = await prisma.message.findUnique({
+                where: { id: participant.lastReadMessageId },
+                select: { createdAt: true },
+            });
+            lastReadDate = lastReadMessage?.createdAt ?? null;
         }
 
-        const potentialMessageIds = potentialMessages.map(m => m.id);
-
-        const alreadyReadReceipts = await prisma.messageReadReceipt.findMany({
-            where: {
-                userId: user.userId,
-                messageId: { in: potentialMessageIds },
-            },
-            select: { messageId: true },
-        });
-
-        const alreadyReadMessageIds = new Set(alreadyReadReceipts.map(r => r.messageId));
-        const messageIdsToMarkAsRead = potentialMessageIds.filter(
-            id => !alreadyReadMessageIds.has(id)
-        );
-
-        if (messageIdsToMarkAsRead.length === 0) {
-            return;
+        // 4. Сравниваем даты: обновляем, только если новое сообщение было создано ПОЗЖЕ
+        if (!lastReadDate || newMessage.createdAt > lastReadDate) {
+            await prisma.chatParticipant.update({
+                where: { id: participant.id },
+                data: { lastReadMessageId: messageId },
+            });
+            console.log(
+                `[MarkAsRead] User ${user.username} marked message ${messageId} as read in chat ${chatId}.`
+            );
         }
-
-        await prisma.messageReadReceipt.createMany({
-            data: messageIdsToMarkAsRead.map(messageId => ({
-                messageId: messageId,
-                userId: user.userId,
-            })),
-            skipDuplicates: true,
-        });
-
-        console.log(
-            `[Messages] User ${user.userId} marked ${messageIdsToMarkAsRead.length} messages as read in chat ${chatId}.`
-        );
-
-        io.of(CHAT_NAMESPACE).to(chatId).emit(SERVER_EVENT_MESSAGES_READ, {
-            chatId: chatId,
-            userId: user.userId,
-            lastReadMessageId: lastReadMessageId,
-            readAt: currentReadTime,
-        });
     } catch (error) {
-        console.error(`[Messages] Error marking messages as read for user ${user.userId}:`, error);
+        console.error(`[MarkAsRead] Error for user ${user.username} in chat ${chatId}:`, error);
     }
 }
 
 export const registerMessageHandlers = (io: AppSocketServer, socket: AppSocket) => {
-    console.log(`[Socket Server] Registering message handlers for socket ID: ${socket.id}`);
-
-    socket.on(CLIENT_EVENT_SEND_MESSAGE, async (payload: ClientSendMessagePayload, ack) => {
+    socket.on(CLIENT_EVENT_SEND_MESSAGE, async (payload, ack) => {
         await handleSendMessage(io, socket, payload, ack);
     });
 
-    socket.on(
-        CLIENT_EVENT_MARK_AS_READ,
-        async (payload: { chatId: string; lastReadMessageId: string }) => {
-            await handleMarkAsRead(io, socket, payload);
-        }
-    );
+    socket.on(CLIENT_EVENT_MARK_AS_READ, async payload => {
+        await handleMarkAsRead(socket, payload);
+    });
 };

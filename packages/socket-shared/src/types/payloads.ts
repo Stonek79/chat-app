@@ -1,4 +1,4 @@
-import type { SendMessagePayload, MessageActionInfo, MessageReadReceiptInfo } from '@chat-app/core';
+import type { SendMessagePayload, DisplayMessage } from '@chat-app/core';
 
 // Типы для пользовательских событий Socket.IO
 export interface SocketUserPresencePayload {
@@ -35,8 +35,9 @@ export interface MessagesReadPayload {
 export type ClientSendMessagePayload = SendMessagePayload & { clientTempId?: string };
 
 // Типы для удаленных сообщений (Socket.IO специфичные)
-export interface MessageDeletedPayload {
+export type MessageDeletedPayload = {
     messageId: string;
     chatId: string;
-    deletedAt: Date;
-}
+};
+
+export type MessageEditedPayload = DisplayMessage;

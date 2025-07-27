@@ -73,6 +73,40 @@ export async function deleteFileLocally(bucketName: BucketName, fileName: string
 }
 
 /**
+ * Удаляет файл по его относительному URL.
+ * Разбирает URL, чтобы определить бакет и имя файла.
+ * @param fileUrl - Относительный URL файла (например, /uploads/media/image.png).
+ */
+export async function deleteFile(fileUrl: string): Promise<void> {
+    try {
+        // Нормализуем URL и разбиваем на части
+        const parts = fileUrl.split('/').filter(p => p); // parts = ['uploads', 'media', 'image.png']
+
+        // Проверяем, соответствует ли URL ожидаемой структуре
+        if (parts.length < 3 || parts[0] !== path.basename(UPLOADS_BASE_PATH!)) {
+            console.warn(`Invalid or malformed file URL provided for deletion: ${fileUrl}. Skipping.`);
+            return;
+        }
+
+        const bucket = parts[1] as BucketName;
+        const fileName = parts.slice(2).join('/'); // На случай, если в имени файла есть поддиректории
+
+        // Проверяем, является ли бакет валидным
+        if (!Object.values(BUCKETS).includes(bucket)) {
+            console.warn(`Unknown bucket '${bucket}' in URL: ${fileUrl}. Skipping deletion.`);
+            return;
+        }
+
+        await deleteFileLocally(bucket, fileName);
+
+    } catch (error) {
+        console.error(`Failed to process deletion for URL "${fileUrl}":`, error);
+        // Не пробрасываем ошибку дальше, чтобы не прерывать основную транзакцию,
+        // но логируем ее для дальнейшего анализа.
+    }
+}
+
+/**
  * Инициализирует все необходимые директории для бакетов.
  */
 export async function initializeStorage(): Promise<void> {

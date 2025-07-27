@@ -5,13 +5,13 @@ import type { AuthenticatedUser } from '@chat-app/core';
 import { CHAT_PAGE_ROUTE } from '@chat-app/core';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
-import { IconButton, InputBase } from '@mui/material';
+import { CircularProgress, IconButton, InputBase } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import { useTheme } from '@/providers';
 import { ChatList } from '@/components';
 import SearchIcon from '@mui/icons-material/Search';
-import useChatStore from '@/store/chatStore';
 import { UserProfilePanel } from './sidebar/UserProfilePanel';
+import { useChatList } from '@/hooks';
 
 const getChatIdFromPathname = (currentPathname: string): string | null => {
     // Убедимся, что CHAT_PAGE_ROUTE оканчивается без слеша для корректного разделения
@@ -34,16 +34,20 @@ const getChatIdFromPathname = (currentPathname: string): string | null => {
 
 interface SidebarProps {
     currentUser: AuthenticatedUser;
-    isMobile: boolean;
     onChatSelect: (chatId: string) => void;
 }
 
-export function Sidebar({ currentUser, isMobile, onChatSelect }: SidebarProps) {
+export function Sidebar({ currentUser, onChatSelect }: SidebarProps) {
     const displayUser = currentUser;
     const router = useRouter();
     const pathname = usePathname();
-    const { chats } = useChatStore();
+    const { chats, isLoading } = useChatList();
+
     const { mode, toggleTheme } = useTheme();
+
+    if (isLoading) {
+        return <CircularProgress />;
+    }
 
     // ID активного чата теперь просто вычисляется из URL.
     // Больше нет необходимости в useState и useEffect для синхронизации.

@@ -2,6 +2,11 @@
     "name": "chat-app-monorepo",
     "private": true,
     "packageManager": "pnpm@10.12.4",
+    "pnpm": {
+        "overrides": {
+            "zod": "4.0.10"
+        }
+    },
     "scripts": {
         "build": "turbo build",
         "dev": "turbo dev",
@@ -11,26 +16,15 @@
         "typecheck": "turbo typecheck",
         "db:generate": "turbo db:generate",
         "db:push": "turbo db:push",
-        "db:studio": "pnpm --filter @chat-app/db db:studio",
-        "install:all": "pnpm install",
-        "build:packages": "turbo build --filter='./packages/*'",
-        "dev:packages": "turbo dev --filter='./packages/*'",
-        "dev:apps": "turbo dev --filter='./apps/*'",
-        "build:edge-constants": "turbo build:edge-constants --filter=@chat-app/core"
+        "db:studio": "pnpm --filter @chat-app/db db:studio"
     },
     "devDependencies": {
-        "@dotenvx/dotenvx": "^1.45.2",
-        "@types/minimatch": "^5.1.2",
-        "@types/node": "^24.0.10",
-        "eslint": "^9.30.1",
-        "prettier": "^3.6.2",
+        "@dotenvx/dotenvx": "^1.48.0",
+        "@types/node": "^24.1.0",
+        "eslint": "^9.31.0",
+        "prettier": "^3.6.0",
         "tsup": "^8.5.0",
-        "turbo": "^2.5.4",
-        "typescript": "^5.8.3"
-    },
-    "dependencies": {
-        "dotenv": "^17.0.1",
-        "swr": "^2.3.4",
-        "zod": "^3.25.67"
+        "turbo": "^2.5.5",
+        "typescript": "^5.8.0"
     }
 }

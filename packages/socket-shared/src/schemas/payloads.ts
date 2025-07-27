@@ -1,7 +1,9 @@
 import { z } from 'zod';
+import { displayMessageSchema } from '@chat-app/core';
 
 export const messageDeletedPayloadSchema = z.object({
-    messageId: z.string().cuid(),
-    chatId: z.string().cuid(),
-    deletedAt: z.coerce.date(), // Используем coerce.date() для преобразования строки/числа в Date
+    messageId: z.cuid(),
+    chatId: z.cuid(),
 });
+
+export const messageEditedPayloadSchema = displayMessageSchema;

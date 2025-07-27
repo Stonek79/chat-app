@@ -94,8 +94,6 @@ export function toClientChat(
     const lastMessage = messages[0];
     const unreadCount = prismaChat._count?.messages ?? 0;
 
-    console.log('TO CLIENT CHAT', messages);
-
     return {
         id: prismaChat.id,
         name: prismaChat.name,
@@ -187,15 +185,22 @@ export function toChatWithDetails(
     };
 }
 
+type ToChatWithDetailsFromPartialArgs = {
+    prismaChat: PrismaChatWithPartialParticipants;
+    currentUserId: string;
+    lastMessage?: DisplayMessage;
+    unreadCount?: number;
+};
+
 /**
  * Создает ChatWithDetails из частичных User данных (для API с select)
  */
-export function toChatWithDetailsFromPartial(
-    prismaChat: PrismaChatWithPartialParticipants,
-    currentUserId: string,
-    lastMessage?: DisplayMessage,
-    unreadCount = 0
-): ChatWithDetails {
+export function toChatWithDetailsFromPartial({
+    prismaChat,
+    currentUserId,
+    lastMessage,
+    unreadCount = 0,
+}: ToChatWithDetailsFromPartialArgs): ChatWithDetails {
     const members = prismaChat.participants.map(p => toChatParticipantInfoFromPartial(p));
     const currentUserParticipant = members.find(p => p.userId === currentUserId);
 
@@ -245,7 +250,7 @@ export function toChatListItem(
     currentUserId: string
 ): ChatWithDetails {
     const members = prismaChat.participants.map(p => toChatParticipantInfoFromPartial(p));
-
+    const currentUserParticipant = members.find(p => p.userId === currentUserId);
     const lastPrismaMessage = prismaChat.messages[0];
     const lastMessage = lastPrismaMessage
         ? toDisplayMessage(lastPrismaMessage, currentUserId)
@@ -253,7 +258,6 @@ export function toChatListItem(
 
     const unreadCount = prismaChat._count?.messages ?? 0;
 
-    const currentUserParticipant = members.find(p => p.userId === currentUserId);
     const canEdit =
         !!currentUserParticipant &&
         (currentUserParticipant.role === DEFAULT_ROLES.OWNER ||

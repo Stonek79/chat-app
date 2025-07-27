@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
         '@chat-app/db',
         '@chat-app/socket-shared',
         '@chat-app/server-shared',
-        '@chat-app/constants-edge', // Edge Runtime compatible constants
         '@chat-app/media-storage',
     ],
     experimental: {

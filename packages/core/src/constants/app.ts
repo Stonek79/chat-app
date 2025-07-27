@@ -33,3 +33,5 @@ export const CONNECTION_STATUS = {
     RECONNECTING: 'reconnecting',
     ERROR: 'error',
 } as const;
+
+export const MESSAGE_DELETION_WINDOW_MINUTES = 15;

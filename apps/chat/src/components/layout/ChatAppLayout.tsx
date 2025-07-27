@@ -1,21 +1,26 @@
 'use client';
 
-import { ReactNode, useEffect, useState, MouseEvent } from 'react';
+import { ReactNode, useEffect, useState, MouseEvent, useMemo, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ChatWithDetails, MessagePayload } from '@chat-app/core';
-import { CHAT_PAGE_ROUTE, convertMessagePayloadToDisplayMessage } from '@chat-app/core';
+import {
+    CHAT_PAGE_ROUTE,
+    convertMessagePayloadToDisplayMessage,
+    LOGIN_PAGE_ROUTE,
+    REGISTER_PAGE_ROUTE,
+} from '@chat-app/core';
+import { HOME_PAGE_ROUTE } from '@chat-app/core';
 import {
     SERVER_EVENT_CHAT_CREATED,
     SERVER_EVENT_RECEIVE_MESSAGE,
     getSocket,
 } from '@chat-app/socket-shared';
 import AddIcon from '@mui/icons-material/Add';
-import { Fab, Menu, MenuItem } from '@mui/material';
-import Box from '@mui/material/Box';
-
+import { Box, CircularProgress, Fab, Menu, MenuItem } from '@mui/material';
 import { Sidebar } from '@/components';
-import { useAuth, useMobile } from '@/hooks';
+import { useMobile, useChatActions } from '@/hooks';
 import useChatStore from '@/store/chatStore';
+import { shallow } from 'zustand/vanilla/shallow';
 
 interface AdaptiveChatLayoutProps {
     children: ReactNode;
@@ -30,39 +35,37 @@ const sidebarWidth = 320;
  */
 export function ChatAppLayout({ children }: AdaptiveChatLayoutProps) {
     const isMobile = useMobile();
-    const { user } = useAuth();
-    const { addChat, updateLastMessage, incrementUnreadCount, fetchChats } = useChatStore();
+    const { user, isLoading } = useChatStore(
+        state => ({ user: state.currentUser, isLoading: state.isLoading }),
+        shallow
+    );
     const pathname = usePathname();
     const router = useRouter();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const { addChat, updateLastMessage, incrementUnreadCount } = useChatActions();
 
-    const handleMenuOpen = (event: MouseEvent<HTMLElement>) => {
-        setAnchorEl(event.currentTarget);
-    };
-
-    const handleMenuClose = () => {
-        setAnchorEl(null);
-    };
-
-    const handleCreateGroup = () => {
-        console.log('Create group chat from FAB');
-        handleMenuClose();
-    };
-
-    const handleCreateDirect = () => {
-        console.log('Create direct chat from FAB');
-        handleMenuClose();
-    };
-
-    const handleChatSelect = (chatId: string) => {
-        router.push(`${CHAT_PAGE_ROUTE}/${chatId}`);
-    };
+    const publicRoutes = useMemo(
+        () => [LOGIN_PAGE_ROUTE, REGISTER_PAGE_ROUTE, HOME_PAGE_ROUTE],
+        []
+    );
 
     useEffect(() => {
-        if (!user) return;
+        if (isLoading) return; // Ждем окончания загрузки данных о пользователе
 
-        // Загружаем чаты один раз при аутентификации пользователя
-        fetchChats();
+        const isPublicRoute = publicRoutes.includes(pathname);
+        const isAuthenticated = !!user;
+
+        if (!isAuthenticated && !isPublicRoute) {
+            router.push(LOGIN_PAGE_ROUTE);
+        } else if (isAuthenticated && isPublicRoute) {
+            router.push(CHAT_PAGE_ROUTE);
+        }
+    }, [user, isLoading, pathname, router, publicRoutes]);
+
+    useEffect(() => {
+        if (!user || isLoading) {
+            return;
+        }
 
         const socket = getSocket();
 
@@ -71,14 +74,17 @@ export function ChatAppLayout({ children }: AdaptiveChatLayoutProps) {
         };
 
         const handleNewMessage = (payload: MessagePayload) => {
-            const message = convertMessagePayloadToDisplayMessage(payload, user.id);
-            // Не увеличиваем счетчик, если мы уже в этом чате
-            if (pathname !== `${CHAT_PAGE_ROUTE}/${message.chatId}`) {
-                incrementUnreadCount(message.chatId);
+            // Проверяем, что чат, к которому пришло сообщение, не является текущим открытым
+            const currentChatId = pathname.split('/').pop();
+            if (payload.chatId !== currentChatId) {
+                incrementUnreadCount(payload.chatId);
             }
-            updateLastMessage(message.chatId, message);
+            // Обновляем последнее сообщение всегда
+            updateLastMessage(
+                payload.chatId,
+                convertMessagePayloadToDisplayMessage(payload, user.id)
+            );
         };
-
         socket.on(SERVER_EVENT_CHAT_CREATED, handleNewChat);
         socket.on(SERVER_EVENT_RECEIVE_MESSAGE, handleNewMessage);
 
@@ -86,24 +92,68 @@ export function ChatAppLayout({ children }: AdaptiveChatLayoutProps) {
             socket.off(SERVER_EVENT_CHAT_CREATED, handleNewChat);
             socket.off(SERVER_EVENT_RECEIVE_MESSAGE, handleNewMessage);
         };
-    }, [user, addChat, updateLastMessage, incrementUnreadCount, pathname, fetchChats]);
+    }, [user, addChat, updateLastMessage, incrementUnreadCount, pathname]);
 
-    if (!user) {
-        return null;
+    const handleMenuOpen = useCallback((event: MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget);
+    }, []);
+
+    const handleMenuClose = useCallback(() => {
+        setAnchorEl(null);
+    }, []);
+
+    const handleCreateGroup = useCallback(() => {
+        console.log('Create group chat from FAB');
+        handleMenuClose();
+    }, []);
+
+    const handleCreateDirect = useCallback(() => {
+        console.log('Create direct chat from FAB');
+        handleMenuClose();
+    }, []);
+
+    const handleChatSelect = useCallback((chatId: string) => {
+        router.push(`${CHAT_PAGE_ROUTE}/${chatId}`);
+    }, []);
+
+    if (isLoading) {
+        // Пока идет проверка, показываем лоадер
+        return (
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                }}
+            >
+                <CircularProgress />
+            </Box>
+        );
     }
 
     const isChatRootPage = pathname === CHAT_PAGE_ROUTE;
+
+    const isPublicRoute = publicRoutes.includes(pathname);
+
+    // Если мы на публичном роуте и не залогинены, показываем children (LoginForm)
+    if (!user && isPublicRoute) {
+        return <>{children}</>;
+    }
+
+    // Если не залогинены и на приватном роуте, редирект уже сработал, ничего не рендерим
+    if (!user && !isPublicRoute) {
+        return null;
+    }
+
+    if (!user) return null; // Формальная проверка для TypeScript, хотя логически сюда не попадем
 
     // На мобильных устройствах мы показываем либо список чатов (Sidebar), либо сам чат (children)
     if (isMobile) {
         return (
             <>
                 {isChatRootPage ? (
-                    <Sidebar
-                        currentUser={user}
-                        isMobile={isMobile}
-                        onChatSelect={handleChatSelect}
-                    />
+                    <Sidebar currentUser={user} onChatSelect={handleChatSelect} />
                 ) : (
                     <>{children}</>
                 )}
@@ -152,7 +202,7 @@ export function ChatAppLayout({ children }: AdaptiveChatLayoutProps) {
                     borderColor: 'divider',
                 }}
             >
-                <Sidebar currentUser={user} isMobile={isMobile} onChatSelect={handleChatSelect} />
+                <Sidebar currentUser={user} onChatSelect={handleChatSelect} />
             </Box>
             <Box component="main" sx={{ flexGrow: 1, height: '100%' }}>
                 {children}

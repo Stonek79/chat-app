@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { toChatListItem } from '@chat-app/core';
-import { prisma, handleApiError, getCurrentUser } from '@/lib';
+import { ERROR_MESSAGES, HTTP_STATUS, toChatListItem } from '@chat-app/core';
+import { prisma, ApiError, handleApiError, getCurrentUser } from '@/lib';
 
 /**
  * GET /api/chats
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     try {
         const currentUser = await getCurrentUser(request);
         if (!currentUser) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return new ApiError(ERROR_MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
         }
 
         // Получаем чаты с правильными связями

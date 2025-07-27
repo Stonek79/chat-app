@@ -1,15 +1,15 @@
-import 'dotenv/config';
+// import 'dotenv/config';
 import { z } from 'zod';
 import { DEFAULT_SERVER_CONFIG } from '@chat-app/core';
 
 // Ленивая загрузка dotenv только при необходимости
-function loadDotEnv() {
-    try {
-        import('dotenv/config');
-    } catch {
-        // В Docker или production dotenv может отсутствовать
-    }
-}
+// function loadDotEnv() {
+//     try {
+//         import('dotenv/config');
+//     } catch {
+//         // В Docker или production dotenv может отсутствовать
+//     }
+// }
 
 // Серверная конфигурация (содержит секреты и серверные настройки)
 const serverEnvSchema = z.object({
@@ -53,7 +53,7 @@ let clientConfigInstance: ClientConfig;
 
 function parseServerConfig(): ServerConfig {
     // Загружаем dotenv только при необходимости
-    loadDotEnv();
+    // loadDotEnv();
 
     const parsed = serverEnvSchema.safeParse(process.env);
     if (!parsed.success) {

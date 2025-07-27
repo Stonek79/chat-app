@@ -57,7 +57,6 @@ export const SOCKET_EVENT_DISCONNECT = 'disconnect';
 export const CLIENT_EVENT_SEND_MESSAGE = 'message:send';
 export const SERVER_EVENT_RECEIVE_MESSAGE = 'message:receive';
 export const CLIENT_EVENT_EDIT_MESSAGE = 'message:edit';
-export const CLIENT_EVENT_DELETE_MESSAGE = 'message:delete';
 export const SERVER_EVENT_MESSAGE_DELETED = 'message:delete';
 export const CLIENT_EVENT_MARK_AS_READ = 'message:read';
 export const SERVER_EVENT_MESSAGES_READ = 'message:read';

@@ -1,23 +1,25 @@
 'use client';
 
+import { useSWRConfig } from 'swr';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { REGISTER_PAGE_ROUTE, loginSchema, LoginCredentials } from '@chat-app/core';
+import {
+    REGISTER_PAGE_ROUTE,
+    loginSchema,
+    LoginCredentials,
+    API_AUTH_ME_ROUTE,
+} from '@chat-app/core';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import { login } from '@/lib/auth/actions';
 
-import { useAuth } from '@/hooks';
-
-import { AuthErrorAlert, AuthRedirectLink, SubmitButton } from './common';
+import { AuthRedirectLink, SubmitButton } from './common';
 import { EmailField, PasswordField } from './fields';
+import { useState } from 'react';
 
-interface LoginFormProps {
-    returnTo?: string;
-    registrationSuccess?: boolean;
-}
-
-export function LoginForm({ returnTo, registrationSuccess }: LoginFormProps) {
-    const { login, isLoading } = useAuth();
+export function LoginForm({ registrationSuccess }: { registrationSuccess: boolean }) {
+    const { mutate } = useSWRConfig();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {
         control,
@@ -31,8 +33,12 @@ export function LoginForm({ returnTo, registrationSuccess }: LoginFormProps) {
     });
 
     const onSubmit = async (data: LoginCredentials) => {
+        setIsSubmitting(true);
+
         try {
-            await login(data, returnTo);
+            const authResponse = await login(data);
+
+            await mutate(API_AUTH_ME_ROUTE, authResponse, { revalidate: false });
         } catch (error: unknown) {
             // Обрабатываем общую ошибку, не привязанную к полю
             const errorMessage =
@@ -47,6 +53,8 @@ export function LoginForm({ returnTo, registrationSuccess }: LoginFormProps) {
                 type: 'server',
                 message: errorMessage,
             });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -97,7 +105,7 @@ export function LoginForm({ returnTo, registrationSuccess }: LoginFormProps) {
                         {errors.root.serverError.message}
                     </Alert>
                 )}
-                <SubmitButton isLoading={isLoading} loadingText="Вход...">
+                <SubmitButton isLoading={isSubmitting} loadingText="Вход...">
                     Войти
                 </SubmitButton>
                 <AuthRedirectLink

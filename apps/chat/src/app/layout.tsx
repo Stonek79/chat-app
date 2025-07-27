@@ -1,14 +1,8 @@
 import { ReactNode } from 'react';
-import { Toaster } from 'react-hot-toast';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-
-import { AuthProvider } from '@/providers';
-import { ThemeRegistry } from '@/components';
-
 import './globals.css';
-
-const inter = Inter({ subsets: ['latin'] });
+import '@fontsource/inter';
+import { RootProvider } from '@/providers/RootProvider';
 
 export const metadata: Metadata = {
     title: 'Chat App',
@@ -27,13 +21,8 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: Readonly<RootLayoutProps>) {
     return (
         <html lang="ru">
-            <body className={inter.className}>
-                <ThemeRegistry>
-                    <AuthProvider>
-                        <Toaster position="top-center" reverseOrder={false} />
-                        <main className="h-screen">{children}</main>
-                    </AuthProvider>
-                </ThemeRegistry>
+            <body>
+                <RootProvider>{children}</RootProvider>
             </body>
         </html>
     );

@@ -1,9 +1,11 @@
 'use client';
 
 import { createContext, useState, useEffect, useMemo, useContext, useCallback } from 'react';
-import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
-import { TELEGRAM_THEME_COLORS } from '@chat-app/core';
-import { PaletteMode } from '@mui/material';
+import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
+import { CssBaseline, type PaletteMode } from '@mui/material';
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
+// 1. Импортируем наши готовые темы
+import { lightTheme, darkTheme } from '@/theme/theme';
 
 interface ThemeContextType {
     mode: PaletteMode;
@@ -30,38 +32,24 @@ export const CustomThemeProvider = ({ children }: { children: React.ReactNode })
         });
     }, []);
 
-    const theme = useMemo(() => {
-        const palette = mode === 'dark' ? TELEGRAM_THEME_COLORS.dark : TELEGRAM_THEME_COLORS.light;
-        return createTheme({
-            palette: {
-                mode,
-                primary: {
-                    main: palette.msgOutBg,
-                },
-                secondary: {
-                    main: palette.dialogsSentIconFgActive,
-                },
-                background: {
-                    default: palette.windowBg,
-                    paper: palette.msgInBg,
-                },
-                text: {
-                    primary: palette.historyTextInFg,
-                    secondary: palette.historyTextOutFg,
-                },
-            },
-        });
-    }, [mode]);
+    // 2. Выбираем нужную тему в зависимости от `mode`
+    const theme = useMemo(() => (mode === 'light' ? lightTheme : darkTheme), [mode]);
 
     const contextValue = useMemo(() => ({ mode, toggleTheme }), [mode, toggleTheme]);
 
     return (
-        <ThemeContext.Provider value={contextValue}>
-            <MuiThemeProvider theme={theme}>{children}</MuiThemeProvider>
-        </ThemeContext.Provider>
+        <AppRouterCacheProvider>
+            <ThemeContext.Provider value={contextValue}>
+                <MuiThemeProvider theme={theme}>
+                    <CssBaseline />
+                    {children}
+                </MuiThemeProvider>
+            </ThemeContext.Provider>
+        </AppRouterCacheProvider>
     );
 };
 
+// Функция `useTheme` остается без изменений.
 export const useTheme = () => {
     const context = useContext(ThemeContext);
     if (context === undefined) {

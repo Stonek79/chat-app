@@ -9,7 +9,6 @@ import type {
 import {
     sendMessageSchema,
     editMessageSchema,
-    deleteMessageSchema,
     markAsReadSchema,
     displayMessageSchema,
     messageReadReceiptInfoSchema,
@@ -19,7 +18,6 @@ import {
 // ОСНОВНЫЕ ТИПЫ (выведены из Zod схем - единый источник истины)
 export type SendMessagePayload = z.infer<typeof sendMessageSchema>;
 export type EditMessagePayload = z.infer<typeof editMessageSchema>;
-export type DeleteMessagePayload = z.infer<typeof deleteMessageSchema>;
 export type MarkAsReadPayload = z.infer<typeof markAsReadSchema>;
 
 // UI ТИПЫ (выведены из схем)

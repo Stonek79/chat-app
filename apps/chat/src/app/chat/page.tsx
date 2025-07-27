@@ -1,26 +1,24 @@
-import { redirect } from 'next/navigation';
-import { LOGIN_PAGE_ROUTE, CHAT_PAGE_ROUTE } from '@chat-app/core';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 
-import { fetchChatsForLayout, getCurrentUserFromSessionCookie } from '@/lib';
-import { WelcomePageContent, NoChatsPage } from '@/components';
-
-export default async function ChatRootPage() {
-    const user = await getCurrentUserFromSessionCookie();
-    if (!user) {
-        redirect(LOGIN_PAGE_ROUTE);
-    }
-
-    const chats = await fetchChatsForLayout();
-
-    if (chats.length === 0) {
-        return <NoChatsPage />;
-    }
-
-    const firstChatId = chats[0]?.id;
-    
-    if (firstChatId) {
-        redirect(`${CHAT_PAGE_ROUTE}/${firstChatId}`);
-    }
-
-    return <WelcomePageContent />;
+/**
+ * Страница-заглушка, которая отображается на роуте /chat,
+ * когда ни один конкретный чат не выбран (в основном для десктопной версии).
+ */
+export default function ChatRootPage() {
+    return (
+        <Box
+            sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '100%',
+                textAlign: 'center',
+            }}
+        >
+            <Typography variant="h6" color="text.secondary">
+                Выберите чат, чтобы начать общение.
+            </Typography>
+        </Box>
+    );
 }

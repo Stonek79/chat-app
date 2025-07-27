@@ -1,11 +1,24 @@
-import { useContext } from 'react';
-import type { AuthContextType } from '@chat-app/core';
-import { AuthContext } from '@/contexts';
+'use client';
 
+import useChatStore from '@/store/chatStore';
+import { shallow } from 'zustand/vanilla/shallow';
+
+/**
+ * Хук для доступа к данным аутентификации и экшенам.
+ * Теперь является простой оберткой над useChatStore для удобства.
+ */
 export const useAuth = () => {
-    const context = useContext<AuthContextType | undefined>(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+    const { user, isLoading } = useChatStore(
+        state => ({
+            user: state.currentUser,
+            isLoading: state.isLoading,
+        }),
+        shallow
+    );
+
+    return {
+        user,
+        isLoading,
+        isAuthenticated: !isLoading && !!user,
+    };
 };

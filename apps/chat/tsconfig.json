@@ -22,10 +22,8 @@
             "@chat-app/db/*": ["../../packages/db/src/*"],
             "@chat-app/socket-shared": ["../../packages/socket-shared/src"],
             "@chat-app/socket-shared/*": ["../../packages/socket-shared/src/*"],
-             "@chat-app/server-shared": ["../../packages/server-shared/src"],
-             "@chat-app/server-shared/*": ["../../packages/server-shared/src/*"],
-            "@chat-app/constants-edge": ["../../constants-edge"],
-            "@chat-app/constants-edge/*": ["../../constants-edge/*"],
+            "@chat-app/server-shared": ["../../packages/server-shared/src"],
+            "@chat-app/server-shared/*": ["../../packages/server-shared/src/*"],
             "@chat-app/media-storage": ["../../packages/media-storage/src"],
             "@chat-app/media-storage/*": ["../../packages/media-storage/src/*"]
         }

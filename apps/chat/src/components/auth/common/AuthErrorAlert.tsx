@@ -1,26 +1,20 @@
 'use client';
 
-import Alert, { AlertProps } from '@mui/material/Alert';
+import Alert from '@mui/material/Alert';
+import { FieldErrors } from 'react-hook-form';
 
-import { useAuth } from '@/hooks';
+export function AuthErrorAlert({ errors }: { errors: FieldErrors }) {
+    const { message, type } = errors?.root || {};
 
-interface AuthErrorAlertProps extends Omit<AlertProps, 'severity' | 'children'> {}
-// Если мы хотим позволить передавать другие AlertProps, можно использовать такой тип
-
-export function AuthErrorAlert(props: AuthErrorAlertProps) {
-    const { error: authError } = useAuth();
-
-    if (!authError) {
+    if (!message) {
         return null;
     }
 
     const errorMessage =
-        typeof authError === 'string'
-            ? authError
-            : authError.message || Object.values(authError).flat()[0] || null;
+        typeof type === 'string' ? message : message || Object.values(message).flat()[0] || null;
 
     return (
-        <Alert severity="error" sx={{ width: '100%', mt: 2, mb: 1, ...props.sx }} {...props}>
+        <Alert severity="error" sx={{ width: '100%', mt: 2, mb: 1 }}>
             {errorMessage}
         </Alert>
     );

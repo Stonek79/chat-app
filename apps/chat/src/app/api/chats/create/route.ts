@@ -58,7 +58,6 @@ export async function POST(request: NextRequest) {
             newChatWithDetails = await prisma.$transaction(async tx => {
                 const chat = await tx.chat.create({
                     data: {
-                        id: randomBytes(16).toString('hex'),
                         name: name,
                         isGroupChat: true,
                         updatedAt: new Date(),
@@ -67,13 +66,11 @@ export async function POST(request: NextRequest) {
 
                 const participantsToCreate = [
                     {
-                        id: randomBytes(16).toString('hex'),
                         chatId: chat.id,
                         userId: creatorId,
                         role: ChatParticipantRole.OWNER,
                     },
                     ...memberIds.map(id => ({
-                        id: randomBytes(16).toString('hex'),
                         chatId: chat.id,
                         userId: id,
                         role: ChatParticipantRole.MEMBER,
@@ -193,14 +190,16 @@ export async function POST(request: NextRequest) {
             });
 
             if (existingChat) {
-                const clientChat = toChatWithDetailsFromPartial(existingChat, creatorId);
+                const clientChat = toChatWithDetailsFromPartial({
+                    prismaChat: existingChat,
+                    currentUserId: creatorId,
+                });
                 return NextResponse.json({ chat: clientChat }, { status: 200 }); // Статус 200, так как не создаем новый
             }
 
             newChatWithDetails = await prisma.$transaction(async tx => {
                 const chat = await tx.chat.create({
                     data: {
-                        id: randomBytes(16).toString('hex'),
                         isGroupChat: false,
                         updatedAt: new Date(),
                     },
@@ -209,13 +208,11 @@ export async function POST(request: NextRequest) {
                 await tx.chatParticipant.createMany({
                     data: [
                         {
-                            id: randomBytes(16).toString('hex'),
                             chatId: chat.id,
                             userId: creatorId,
                             role: ChatParticipantRole.MEMBER,
                         },
                         {
-                            id: randomBytes(16).toString('hex'),
                             chatId: chat.id,
                             userId: recipientId,
                             role: ChatParticipantRole.MEMBER,
@@ -263,7 +260,10 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        const clientChat = toChatWithDetailsFromPartial(newChatWithDetails, creatorId);
+        const clientChat = toChatWithDetailsFromPartial({
+            prismaChat: newChatWithDetails,
+            currentUserId: creatorId,
+        });
 
         if (clientChat) {
             try {
