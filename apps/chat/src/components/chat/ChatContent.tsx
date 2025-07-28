@@ -19,14 +19,8 @@ export const ChatContent = ({ chatId }: ChatContentProps) => {
     const { isConnected } = useSocketConnection();
 
     // 1. Получаем данные
-    const {
-        messages,
-        participants,
-        details,
-        isLoading,
-        isLoadingMore,
-        hasMoreMessages,
-    } = useActiveChatData();
+    const { messages, participants, details, isLoading, isLoadingMore, hasMoreMessages } =
+        useActiveChatData();
 
     // 2. Получаем экшены
     const {

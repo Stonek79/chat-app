@@ -22,5 +22,5 @@ function createSocket() {
 export function getSocket(): AppClientSocket {
     return createSocket();
 }
-
+ 
 export { io };

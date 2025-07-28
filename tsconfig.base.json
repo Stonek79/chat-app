@@ -32,6 +32,8 @@
             "@chat-app/server-shared/*": ["./packages/server-shared/src/*"],
             "@chat-app/socket-shared": ["./packages/socket-shared/src"],
             "@chat-app/socket-shared/*": ["./packages/socket-shared/src/*"],
+            "@chat-app/media-storage": ["./packages/media-storage/src"],
+            "@chat-app/media-storage/*": ["./packages/media-storage/src/*"],
             "@/*": ["./apps/chat/src/*"]
         }
     },
