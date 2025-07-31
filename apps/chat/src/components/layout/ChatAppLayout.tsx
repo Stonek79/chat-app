@@ -18,7 +18,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import { Box, CircularProgress, Fab, Menu, MenuItem } from '@mui/material';
 import { Sidebar } from '@/components';
-import { useMobile, useChatActions } from '@/hooks';
+import { useMobile } from '@/hooks';
 import useChatStore from '@/store/chatStore';
 import { shallow } from 'zustand/vanilla/shallow';
 
@@ -42,7 +42,14 @@ export function ChatAppLayout({ children }: AdaptiveChatLayoutProps) {
     const pathname = usePathname();
     const router = useRouter();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const { addChat, updateLastMessage, incrementUnreadCount } = useChatActions();
+    const { addChat, updateLastMessage, incrementUnreadCount } = useChatStore(
+        state => ({
+            addChat: state.addChat,
+            updateLastMessage: state.updateLastMessage,
+            incrementUnreadCount: state.incrementUnreadCount,
+        }),
+        shallow
+    );
 
     const publicRoutes = useMemo(
         () => [LOGIN_PAGE_ROUTE, REGISTER_PAGE_ROUTE, HOME_PAGE_ROUTE],

@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { getSocket } from '@chat-app/socket-shared';
 import { SOCKET_EVENT_CONNECT, SOCKET_EVENT_DISCONNECT } from '@chat-app/core';

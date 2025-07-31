@@ -4,14 +4,10 @@ import { memo, useRef, useCallback, useEffect } from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import type { DisplayMessage, ChatParticipantInfo } from '@chat-app/core';
 import { ChatParticipantRole } from '@chat-app/db';
-import {
-    useLoadMoreOnScroll,
-    useInitialScroll,
-    useAuth,
-    useChatActions,
-    useMessageVisibility,
-} from '@/hooks';
+import { useLoadMoreOnScroll, useInitialScroll, useAuth, useMessageVisibility } from '@/hooks';
 import { ChatMessage } from './ChatMessage';
+import useChatStore from '@/store/chatStore';
+import { shallow } from 'zustand/shallow';
 
 interface ChatMessagesListProps {
     chatId: string;
@@ -20,8 +16,6 @@ interface ChatMessagesListProps {
     hasMoreMessages: boolean;
     isLoadingMore: boolean;
     loadMoreMessages: () => Promise<void>;
-    onEditRequest: (message: DisplayMessage) => void;
-    onDeleteRequest: (id: string, permanent?: boolean) => void;
     messagesContainerRef: React.RefObject<HTMLDivElement | null>;
     messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -33,13 +27,16 @@ export const ChatMessagesList = memo(function ChatMessagesList({
     hasMoreMessages,
     isLoadingMore,
     loadMoreMessages,
-    onEditRequest,
-    onDeleteRequest,
     messagesContainerRef,
     messagesEndRef,
 }: ChatMessagesListProps) {
     const { user: currentUser } = useAuth();
-    const { markAsRead } = useChatActions();
+    const { markAsRead } = useChatStore(
+        state => ({
+            markAsRead: state.markAsRead,
+        }),
+        shallow
+    );
     const userRole =
         participants.find(p => p.userId === currentUser?.id)?.role || ChatParticipantRole.MEMBER;
 
@@ -95,11 +92,12 @@ export const ChatMessagesList = memo(function ChatMessagesList({
         // `scrollHeight` - полная высота контента
         // `scrollTop` - насколько проскроллили сверху
         // `clientHeight` - видимая высота контейнера
-        const isScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 200; // +200px - небольшой "буфер"
+        const isScrolledToBottom =
+            container.scrollHeight - container.scrollTop <= container.clientHeight + 200; // +200px - небольшой "буфер"
 
         // Получаем последнее сообщение
         const lastMessage = messages[messages.length - 1];
-        
+
         // Если пришло новое сообщение (от нас или от другого) и мы были внизу,
         // или если последнее сообщение - наше, то скроллим вниз.
         if (lastMessage && (isScrolledToBottom || lastMessage.sender.id === currentUser?.id)) {
@@ -108,7 +106,7 @@ export const ChatMessagesList = memo(function ChatMessagesList({
     }, [messages, messages.length, currentUser?.id, messagesContainerRef, messagesEndRef]);
 
     return (
-        <Box ref={messagesContainerRef} sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+        <Box ref={messagesContainerRef} sx={{ p: 2 }}>
             {hasMoreMessages && (
                 <Box ref={loaderRef} sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
                     <CircularProgress size={24} />
@@ -136,8 +134,6 @@ export const ChatMessagesList = memo(function ChatMessagesList({
                                 isSameSender={isSameSender}
                                 isGroupChat={participants.length > 2}
                                 isNextMessageFromSameSender={isNextMessageFromSameSender}
-                                onEditRequest={onEditRequest}
-                                onDelete={onDeleteRequest}
                                 participantsCount={participants.length}
                             />
                         </div>

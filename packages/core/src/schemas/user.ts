@@ -42,6 +42,7 @@ export const authenticatedUserSchema = clientUserSchema.pick({
     email: true,
     role: true,
     isVerified: true,
+    avatarUrl: true,
 });
 
 // API схемы

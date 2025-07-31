@@ -10,4 +10,5 @@ export interface MessageUIProps {
     content: ReactElement;
     footer: ReactElement;
     actionsMenu: ReactElement | null;
+    isMobile: boolean;
 }

@@ -52,7 +52,9 @@ export const ChatHeader = ({ chatName, chatAvatarUrl, status }: ChatHeaderProps)
                 backgroundColor: 'background.paper',
             }}
         >
-            <Toolbar sx={{ minHeight: 'sm' }}> {/* TODO: fix interface */}
+            <Toolbar sx={{ minHeight: 'sm' }}>
+                {' '}
+                {/* TODO: fix interface */}
                 <IconButton
                     edge="start"
                     color="inherit"

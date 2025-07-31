@@ -79,12 +79,23 @@ export async function deleteFileLocally(bucketName: BucketName, fileName: string
  */
 export async function deleteFile(fileUrl: string): Promise<void> {
     try {
+        let pathname: string;
+        try {
+            // Пытаемся обработать как полный URL
+            const urlObject = new URL(fileUrl);
+            pathname = urlObject.pathname;
+        } catch (e) {
+            // Если это не полный URL, считаем, что это уже путь
+            pathname = fileUrl;
+        }
         // Нормализуем URL и разбиваем на части
-        const parts = fileUrl.split('/').filter(p => p); // parts = ['uploads', 'media', 'image.png']
+        const parts = pathname.split('/').filter(p => p); // parts = ['uploads', 'media', 'image.png']
 
         // Проверяем, соответствует ли URL ожидаемой структуре
         if (parts.length < 3 || parts[0] !== path.basename(UPLOADS_BASE_PATH!)) {
-            console.warn(`Invalid or malformed file URL provided for deletion: ${fileUrl}. Skipping.`);
+            console.warn(
+                `Invalid or malformed file URL provided for deletion: ${fileUrl}. Skipping.`
+            );
             return;
         }
 
@@ -98,7 +109,6 @@ export async function deleteFile(fileUrl: string): Promise<void> {
         }
 
         await deleteFileLocally(bucket, fileName);
-
     } catch (error) {
         console.error(`Failed to process deletion for URL "${fileUrl}":`, error);
         // Не пробрасываем ошибку дальше, чтобы не прерывать основную транзакцию,
@@ -116,4 +126,3 @@ export async function initializeStorage(): Promise<void> {
     }
     console.log('Local file storage initialized.');
 }
- 

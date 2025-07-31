@@ -1,3 +1,2 @@
-export * from './ChatContent';
-export * from './message';
-export * from './NoChatsPage';
+export { ChatContent } from './ChatContent';
+export { NoChatsPage } from './content/NoChatsPage';

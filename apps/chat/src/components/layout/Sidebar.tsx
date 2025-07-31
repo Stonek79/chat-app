@@ -7,11 +7,11 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import { CircularProgress, IconButton, InputBase } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import { useTheme } from '@/providers';
 import { ChatList } from '@/components';
 import SearchIcon from '@mui/icons-material/Search';
 import { UserProfilePanel } from './sidebar/UserProfilePanel';
-import { useChatList } from '@/hooks';
+import useChatStore from '@/store/chatStore';
+import { shallow } from 'zustand/shallow';
 
 const getChatIdFromPathname = (currentPathname: string): string | null => {
     // Убедимся, что CHAT_PAGE_ROUTE оканчивается без слеша для корректного разделения
@@ -41,9 +41,13 @@ export function Sidebar({ currentUser, onChatSelect }: SidebarProps) {
     const displayUser = currentUser;
     const router = useRouter();
     const pathname = usePathname();
-    const { chats, isLoading } = useChatList();
-
-    const { mode, toggleTheme } = useTheme();
+    const { chats, isLoading } = useChatStore(
+        state => ({
+            chats: state.chats,
+            isLoading: state.isLoading,
+        }),
+        shallow
+    );
 
     if (isLoading) {
         return <CircularProgress />;

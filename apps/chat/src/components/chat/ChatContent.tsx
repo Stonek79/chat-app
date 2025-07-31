@@ -4,11 +4,14 @@ import { useEffect, useCallback, useState, useRef } from 'react';
 import { Alert, Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import type { DisplayMessage } from '@chat-app/core';
 import { UI_MESSAGES } from '@chat-app/core';
-import { useActiveChatData, useChatActions, useChatLifecycle, useSocketConnection } from '@/hooks';
-import { ChatHeader } from './ChatHeader';
-import { MessageInput, ChatMessagesList } from './message';
+import { useChatLifecycle, useSocketConnection } from '@/hooks';
+import { ChatHeader } from './content/ChatHeader';
+import { ChatContentInput } from './content/ChatContentInput';
+import { ChatMessagesList } from './message';
 import { ConfirmationModal } from '@/components';
-import { ScrollToBottomButton } from './ScrollToBottomButton';
+import { ScrollToBottomButton } from './content/ScrollToBottomButton';
+import { shallow } from 'zustand/shallow';
+import useChatStore from '@/store/chatStore';
 
 interface ChatContentProps {
     chatId: string;
@@ -18,22 +21,40 @@ export const ChatContent = ({ chatId }: ChatContentProps) => {
     const theme = useTheme();
     const { isConnected } = useSocketConnection();
 
-    // 1. Получаем данные
-    const { messages, participants, details, isLoading, isLoadingMore, hasMoreMessages } =
-        useActiveChatData();
-
-    // 2. Получаем экшены
     const {
+        messages,
+        participants,
+        details,
+        isLoading,
+        isLoadingMore,
+        hasMoreMessages,
         fetchActiveChat,
         clearActiveChat,
         resetUnreadCount,
         loadMoreMessages,
-        sendMessage,
-        editMessage,
         deleteMessage,
-    } = useChatActions();
+        replyToMessage,
+        messageToEdit,
+    } = useChatStore(
+        state => ({
+            messages: state.activeChat.activeChatMessages,
+            participants: state.activeChat.activeChatParticipants,
+            details: state.activeChat.activeChatDetails,
+            isLoading: state.activeChat.activeChatLoading,
+            hasMoreMessages: state.activeChat.hasMoreMessages,
+            isLoadingMore: state.isLoadingMore,
+            fetchActiveChat: state.fetchActiveChat,
+            clearActiveChat: state.clearActiveChat,
+            resetUnreadCount: state.resetUnreadCount,
+            loadMoreMessages: state.loadMoreMessages,
+            deleteMessage: state.deleteMessage,
+            replyToMessage: state.activeChat.replyToMessage,
+            messageToEdit: state.activeChat.messageToEdit,
+        }),
+        shallow
+    );
 
-    // 3. Управляем жизненным циклом (сокеты и загрузка данных)
+    // Управляем жизненным циклом (сокеты и загрузка данных)
     useChatLifecycle(chatId);
 
     useEffect(() => {
@@ -50,21 +71,25 @@ export const ChatContent = ({ chatId }: ChatContentProps) => {
         id: string;
         permanent: boolean;
     } | null>(null);
-    const [messageToEdit, setMessageToEdit] = useState<DisplayMessage | null>(null);
 
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const handleDeleteRequest = (id: string, permanent = false) =>
-        setMessageToDelete({ id, permanent });
-    const handleCancelDelete = () => setMessageToDelete(null);
-    const handleEditRequest = (message: DisplayMessage) => setMessageToEdit(message);
-    const handleCancelEdit = () => setMessageToEdit(null);
+    useEffect(() => {
+        // Если мы находимся внизу чата, плавно доскроллим,
+        // чтобы компенсировать изменение высоты поля ввода.
+        const container = messagesContainerRef.current;
+        if (container) {
+            const isScrolledToBottom =
+                container.scrollHeight - container.scrollTop <= container.clientHeight + 150; // 150px - буфер
 
-    const handleEditMessage = (messageId: string, content: string) => {
-        editMessage(messageId, content);
-        setMessageToEdit(null);
-    };
+            if (isScrolledToBottom) {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    }, [replyToMessage, messageToEdit]);
+
+    const handleCancelDelete = () => setMessageToDelete(null);
 
     const handleConfirmDelete = useCallback(() => {
         if (messageToDelete) {
@@ -102,43 +127,46 @@ export const ChatContent = ({ chatId }: ChatContentProps) => {
                 display: 'flex',
                 flexDirection: 'column',
                 height: '100%',
+                maxHeight: '100vh',
                 position: 'relative',
                 backgroundColor: theme.palette.background.default,
             }}
         >
-            <ChatHeader
-                chatName={details.name || UI_MESSAGES.UNNAMED_CHAT}
-                chatAvatarUrl={details.avatarUrl || ''}
-                status={`${participants.length} участника(ов)`}
-            />
-            {!isConnected && (
-                <Alert severity="warning" sx={{ m: 1, flexShrink: 0 }}>
-                    Соединение потеряно...
-                </Alert>
-            )}
-            <ChatMessagesList
-                chatId={chatId}
-                messages={messages}
-                participants={participants}
-                hasMoreMessages={hasMoreMessages}
-                isLoadingMore={isLoadingMore}
-                loadMoreMessages={loadMoreMessages}
-                onEditRequest={handleEditRequest}
-                onDeleteRequest={handleDeleteRequest}
-                messagesContainerRef={messagesContainerRef}
-                messagesEndRef={messagesEndRef}
-            />
-            <ScrollToBottomButton
-                messagesContainerRef={messagesContainerRef}
-                messagesEndRef={messagesEndRef}
-            />
-            <MessageInput
-                onSendMessage={sendMessage}
-                isConnected={isConnected}
-                onEditMessage={handleEditMessage}
-                onCancelEdit={handleCancelEdit}
-                messageToEdit={messageToEdit}
-            />
+            <Box sx={{ flexShrink: 0 }}>
+                <ChatHeader
+                    chatName={details.name || UI_MESSAGES.UNNAMED_CHAT}
+                    chatAvatarUrl={details.avatarUrl || ''}
+                    status={`${participants.length} участника(ов)`}
+                />
+                {!isConnected && (
+                    <Alert severity="warning" sx={{ m: 1, flexShrink: 0 }}>
+                        Соединение потеряно...
+                    </Alert>
+                )}
+            </Box>
+            <Box
+                sx={{
+                    flexGrow: 1,
+                    overflowY: 'auto',
+                    position: 'relative',
+                }}
+            >
+                <ChatMessagesList
+                    chatId={chatId}
+                    messages={messages}
+                    participants={participants}
+                    hasMoreMessages={hasMoreMessages}
+                    isLoadingMore={isLoadingMore}
+                    loadMoreMessages={loadMoreMessages}
+                    messagesContainerRef={messagesContainerRef}
+                    messagesEndRef={messagesEndRef}
+                />
+                <ScrollToBottomButton
+                    messagesContainerRef={messagesContainerRef}
+                    messagesEndRef={messagesEndRef}
+                />
+            </Box>
+            <ChatContentInput />
             <ConfirmationModal
                 open={!!messageToDelete}
                 onClose={handleCancelDelete}

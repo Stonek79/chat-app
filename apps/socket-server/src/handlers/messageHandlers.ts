@@ -30,7 +30,14 @@ async function handleSendMessage(
             throw new Error('Ошибка валидации: chatId и content обязательны');
         }
 
-        const { chatId, content, contentType = 'TEXT', clientTempId } = payload;
+        const {
+            chatId,
+            content,
+            contentType = 'TEXT',
+            clientTempId,
+            replyToMessageId,
+            mediaUrl,
+        } = payload;
 
         console.log(`[Messages] User ${user.username} sending message to chat ${chatId}.`);
 
@@ -50,6 +57,8 @@ async function handleSendMessage(
                     chatId,
                     senderId: user.userId,
                     updatedAt: new Date(),
+                    replyToMessageId,
+                    mediaUrl,
                 },
                 select: {
                     id: true,
@@ -65,6 +74,21 @@ async function handleSendMessage(
                             email: true,
                             avatarUrl: true,
                             role: true,
+                        },
+                    },
+                    // Включаем данные об ответе в запрос
+                    replyTo: {
+                        select: {
+                            id: true,
+                            content: true,
+                            contentType: true,
+                            sender: {
+                                select: {
+                                    id: true,
+                                    username: true,
+                                    avatarUrl: true,
+                                },
+                            },
                         },
                     },
                 },
@@ -96,9 +120,25 @@ async function handleSendMessage(
             readReceipts: [],
             actions: [],
             clientTempId,
+            replyTo: newMessage.replyTo
+                ? {
+                      id: newMessage.replyTo.id,
+                      content: newMessage.replyTo.content,
+                      contentType: newMessage.replyTo.contentType,
+                      sender: {
+                          id: newMessage.replyTo.sender.id,
+                          username: newMessage.replyTo.sender.username,
+                          avatarUrl: newMessage.replyTo.sender.avatarUrl,
+                      },
+                  }
+                : undefined,
         };
 
-        io.of(CHAT_NAMESPACE).to(chatId).emit(SERVER_EVENT_RECEIVE_MESSAGE, messagePayload);
+        console.log('[ MESSAGE PAYLOAD ]', messagePayload);
+        
+        io.of(CHAT_NAMESPACE)
+            .to(chatId)
+            .emit(SERVER_EVENT_RECEIVE_MESSAGE, messagePayload);
         console.log(`[Messages] Message ${newMessage.id} sent to room ${chatId}.`);
 
         ack?.({

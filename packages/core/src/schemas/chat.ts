@@ -110,6 +110,7 @@ export const clientChatSchema = chatSchema.extend({
             id: z.cuid(),
             content: z.string(),
             createdAt: z.coerce.date(),
+            updatedAt: z.coerce.date(),
             sender: z.object({
                 id: z.cuid(),
                 username: z.string(),
@@ -151,6 +152,7 @@ export const chatListItemSchema = z.object({
             id: z.cuid(),
             content: z.string(),
             createdAt: z.coerce.date(),
+            updatedAt: z.coerce.date(),
             sender: z.object({
                 id: z.cuid(),
                 username: z.string(),

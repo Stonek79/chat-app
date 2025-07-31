@@ -1,4 +1,6 @@
-import { useCallback, useEffect } from 'react';
+'use client';
+
+import { useEffect } from 'react';
 import {
     CLIENT_EVENT_JOIN_CHAT,
     CLIENT_EVENT_LEAVE_CHAT,

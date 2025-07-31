@@ -53,6 +53,19 @@ export const messageActionInfoSchema = messageActionSchema.extend({
 
 export const clientMessageActionSchema = messageActionInfoSchema;
 
+export const replyInfoSchema = z
+    .object({
+        id: z.cuid(),
+        content: z.string(),
+        contentType: z.enum(MessageContentType),
+        sender: z.object({
+            id: z.cuid(),
+            username: z.string(),
+            avatarUrl: z.string().nullable(),
+        }),
+    })
+    .optional();
+
 export const displayMessageSchema = messageSchema.extend({
     sender: z.object({
         id: z.cuid(),
@@ -63,18 +76,7 @@ export const displayMessageSchema = messageSchema.extend({
     }),
     readReceipts: z.array(messageReadReceiptInfoSchema),
     actions: z.array(messageActionInfoSchema),
-    replyTo: z
-        .object({
-            id: z.cuid(),
-            content: z.string(),
-            contentType: z.enum(MessageContentType),
-            sender: z.object({
-                id: z.cuid(),
-                username: z.string(),
-                avatarUrl: z.string().nullable(),
-            }),
-        })
-        .optional(),
+    replyTo: replyInfoSchema,
     isCurrentUser: z.boolean(),
 });
 

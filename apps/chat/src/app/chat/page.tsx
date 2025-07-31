@@ -1,5 +1,5 @@
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
+import Container from '@mui/material/Box';
+import { NoChatsPage } from '@/components';
 
 /**
  * Страница-заглушка, которая отображается на роуте /chat,
@@ -7,7 +7,7 @@ import Typography from '@mui/material/Typography';
  */
 export default function ChatRootPage() {
     return (
-        <Box
+        <Container
             sx={{
                 display: 'flex',
                 justifyContent: 'center',
@@ -16,9 +16,7 @@ export default function ChatRootPage() {
                 textAlign: 'center',
             }}
         >
-            <Typography variant="h6" color="text.secondary">
-                Выберите чат, чтобы начать общение.
-            </Typography>
-        </Box>
+            <NoChatsPage />
+        </Container>
     );
 }

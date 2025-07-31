@@ -221,6 +221,11 @@ async function fetchMessagesWithCursor(chatId: string, cursor: string | null, li
             sender: true,
             readReceipts: { include: { user: true } },
             actions: { include: { actor: true } },
+            replyTo: {
+                include: {
+                    sender: true,
+                },
+            },
         },
         orderBy: { createdAt: 'desc' },
     });
@@ -247,6 +252,11 @@ async function fetchMessagesAroundAnchor(chatId: string, anchorId: string, limit
             sender: true,
             readReceipts: { include: { user: true } },
             actions: { include: { actor: true } },
+            replyTo: {
+                include: {
+                    sender: true,
+                },
+            },
         },
     });
 
@@ -266,6 +276,11 @@ async function fetchMessagesAroundAnchor(chatId: string, anchorId: string, limit
             sender: true,
             readReceipts: { include: { user: true } },
             actions: { include: { actor: true } },
+            replyTo: {
+                include: {
+                    sender: true,
+                },
+            },
         },
         orderBy: { createdAt: 'desc' },
     });
@@ -281,6 +296,11 @@ async function fetchMessagesAroundAnchor(chatId: string, anchorId: string, limit
             sender: true,
             readReceipts: { include: { user: true } },
             actions: { include: { actor: true } },
+            replyTo: {
+                include: {
+                    sender: true,
+                },
+            },
         },
         orderBy: { createdAt: 'asc' },
     });

@@ -45,19 +45,23 @@ export const ChatList = ({ chats, activeChatId, onChatSelect }: ChatListProps) =
                         <ListItemText
                             primary={chat.name}
                             secondary={lastMessageText}
-                            primaryTypographyProps={{
-                                noWrap: true,
-                                sx: { color: 'text.primary', fontWeight: 500 },
-                            }}
-                            secondaryTypographyProps={{
-                                noWrap: true,
-                                sx: { color: 'text.secondary' },
-                            }}
+                            slotProps={
+                                {
+                                    primary: {
+                                        noWrap: true,
+                                        sx: { color: 'text.primary', fontWeight: 500 },
+                                    },
+                                    secondary: {
+                                        noWrap: true,
+                                        sx: { color: 'text.secondary' },
+                                    },
+                                }
+                            }
                         />
                         <Box sx={{ ml: 1, textAlign: 'right', minWidth: '50px' }}>
                             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                                 {chat.lastMessage
-                                    ? formatTimestamp(chat.lastMessage.createdAt)
+                                    ? formatTimestamp(chat.lastMessage.updatedAt)
                                     : ''}
                             </Typography>
                             <Box sx={{ mt: 0.5, height: 20 }}>

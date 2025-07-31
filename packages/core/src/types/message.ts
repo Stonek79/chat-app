@@ -13,6 +13,7 @@ import {
     displayMessageSchema,
     messageReadReceiptInfoSchema,
     messageActionInfoSchema,
+    replyInfoSchema,
 } from '../schemas/message';
 
 // ОСНОВНЫЕ ТИПЫ (выведены из Zod схем - единый источник истины)
@@ -43,6 +44,8 @@ export type MessagePayload = {
     readReceipts: MessageReadReceiptInfo[];
     actions: MessageActionInfo[];
     clientTempId?: string;
+    mediaUrl?: string | null;
+    replyTo?: z.infer<typeof replyInfoSchema>;
 };
 
 // Socket payload типы

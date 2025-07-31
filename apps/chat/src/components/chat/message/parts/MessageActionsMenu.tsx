@@ -4,14 +4,15 @@ import { MouseEvent, useState } from 'react';
 import type { DisplayMessage } from '@chat-app/core';
 import { ChatParticipantRole } from '@chat-app/db';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import { Box, IconButton, Menu, MenuItem } from '@mui/material';
+import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
+import { Reply } from '@mui/icons-material';
+import { shallow } from 'zustand/shallow';
+import useChatStore from '@/store/chatStore';
 
 interface MessageActionsMenuProps {
     message: DisplayMessage;
     userRole: ChatParticipantRole;
     isCurrentUserMessage: boolean;
-    onEdit: () => void;
-    onDelete: () => void;
 }
 
 // TODO: Перенести лимит в пользовательские настройки (от 5 до 15 минут)
@@ -20,23 +21,33 @@ const MODIFY_MESSAGE_LIMIT_MS = 15 * 60 * 1000;
 export const MessageActionsMenu = ({
     message,
     userRole,
-    onEdit,
-    onDelete,
     isCurrentUserMessage,
 }: MessageActionsMenuProps) => {
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+    const { setMessageToEdit, deleteMessage, setReplyToMessage } = useChatStore(
+        state => ({
+            setMessageToEdit: state.setMessageToEdit,
+            deleteMessage: state.deleteMessage,
+            setReplyToMessage: state.setReplyToMessage,
+        }),
+        shallow
+    );
 
     const isAdminOrOwner =
         userRole === ChatParticipantRole.ADMIN || userRole === ChatParticipantRole.OWNER;
 
     const canEdit = () => {
-        if (!isAdminOrOwner) {
+        if (userRole === ChatParticipantRole.ADMIN && isCurrentUserMessage) {
+            return true;
+        }
+
+        if (isCurrentUserMessage) {
             const messageTime = new Date(message.createdAt).getTime();
             const now = new Date().getTime();
             return now <= messageTime + MODIFY_MESSAGE_LIMIT_MS;
         }
 
-        return true;
+        return false;
     };
 
     const canDelete = () => {
@@ -60,12 +71,17 @@ export const MessageActionsMenu = ({
     };
 
     const handleEdit = () => {
-        onEdit();
+        setMessageToEdit(message);
         handleMenuClose();
     };
 
     const handleDelete = () => {
-        onDelete();
+        deleteMessage(message.id);
+        handleMenuClose();
+    };
+
+    const handleReply = () => {
+        setReplyToMessage(message);
         handleMenuClose();
     };
 
@@ -92,6 +108,12 @@ export const MessageActionsMenu = ({
                     },
                 }}
             >
+                <MenuItem onClick={handleReply}>
+                    <ListItemIcon>
+                        <Reply fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Ответить</ListItemText>
+                </MenuItem>
                 {canEdit() && <MenuItem onClick={handleEdit}>Изменить</MenuItem>}
                 {canDelete() && (
                     <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>

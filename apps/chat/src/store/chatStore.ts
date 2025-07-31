@@ -31,6 +31,8 @@ interface ActiveChatState {
     activeChatLoading: boolean;
     hasMoreMessages: boolean;
     nextMessageCursor: string | null;
+    replyToMessage: DisplayMessage | null;
+    messageToEdit: DisplayMessage | null;
 }
 
 interface ChatState {
@@ -67,6 +69,9 @@ interface ChatActions {
     deleteMessage: (messageId: string) => Promise<void>;
     clearActiveChat: () => void;
     markAsRead: (messageId: string) => void;
+    setReplyToMessage: (message: DisplayMessage | null) => void;
+    clearReplyToMessage: () => void;
+    setMessageToEdit: (message: DisplayMessage | null) => void;
 
     // Низкоуровневые экшены для сокетов (без логики, только меняют состояние)
     addMessage: (message: DisplayMessage) => void;
@@ -85,6 +90,8 @@ const initialActiveChatState: ActiveChatState = {
     activeChatLoading: true,
     hasMoreMessages: true,
     nextMessageCursor: null,
+    replyToMessage: null,
+    messageToEdit: null,
 };
 
 // --- РЕАЛИЗАЦИЯ СТОРА ---
@@ -102,7 +109,7 @@ const useChatStore = createWithEqualityFn<ChatStore>()(
         // --- РЕАЛИЗАЦИЯ ЭКШЕНОВ ---
 
         setCurrentUser: user => set({ currentUser: user, isLoading: false }),
-        setAuthLoading: (isLoading) => set({ isLoading }),
+        setAuthLoading: isLoading => set({ isLoading }),
 
         fetchChats: async () => {
             set({ isLoading: true, error: null });
@@ -252,15 +259,21 @@ const useChatStore = createWithEqualityFn<ChatStore>()(
 
         sendMessage: (content, contentType, mediaUrl) => {
             const socket = getSocket();
-            const chatId = get().activeChat.activeChatDetails?.id;
+            const { activeChatDetails, replyToMessage } = get().activeChat;
+            const chatId = activeChatDetails?.id;
+
             if (!socket.connected || !chatId) return;
+
             const payload: SendMessagePayload = {
                 chatId,
                 content,
                 contentType: contentType || 'TEXT',
                 mediaUrl,
+                replyToMessageId: replyToMessage?.id,
             };
             socket.emit(CLIENT_EVENT_SEND_MESSAGE, payload);
+
+            get().clearReplyToMessage();
         },
 
         editMessage: async (messageId, newContent) => {
@@ -286,7 +299,18 @@ const useChatStore = createWithEqualityFn<ChatStore>()(
             } catch (error) {
                 console.error('Error editing message:', error);
                 get().updateMessage(messageId, { content: oldContent }); // Откат
+            } finally {
+                get().setMessageToEdit(null);
             }
+        },
+
+        setMessageToEdit: message => {
+            set(state => ({
+                activeChat: {
+                    ...state.activeChat,
+                    messageToEdit: message,
+                },
+            }));
         },
 
         deleteMessage: async messageId => {
@@ -340,6 +364,24 @@ const useChatStore = createWithEqualityFn<ChatStore>()(
             socket.emit(CLIENT_EVENT_MARK_AS_READ, { chatId, messageId });
         },
 
+        setReplyToMessage: message => {
+            set(state => ({
+                activeChat: {
+                    ...state.activeChat,
+                    replyToMessage: message,
+                },
+            }));
+        },
+
+        clearReplyToMessage: () => {
+            set(state => ({
+                activeChat: {
+                    ...state.activeChat,
+                    replyToMessage: null,
+                },
+            }));
+        },
+
         clearActiveChat: () => set({ activeChat: initialActiveChatState }),
 
         addMessage: message => {
@@ -366,6 +408,7 @@ const useChatStore = createWithEqualityFn<ChatStore>()(
                 };
             });
         },
+
         updateMessage: (messageId, updatedFields) => {
             set(state => ({
                 activeChat: {
@@ -376,6 +419,7 @@ const useChatStore = createWithEqualityFn<ChatStore>()(
                 },
             }));
         },
+
         removeMessage: messageId => {
             set(state => ({
                 activeChat: {
@@ -386,7 +430,9 @@ const useChatStore = createWithEqualityFn<ChatStore>()(
                 },
             }));
         },
+
         addChat: chat => set(state => ({ chats: [chat, ...state.chats] })),
+
         updateLastMessage: (chatId, message) => {
             set(state => ({
                 chats: state.chats

@@ -55,6 +55,7 @@ export async function validateToken(token: string): Promise<AuthenticatedUser | 
             email: validationResult.data.email,
             username: validationResult.data.username,
             role: validationResult.data.role,
+            avatarUrl: validationResult.data.avatarUrl,
             isVerified: true, // Если токен валиден, пользователь верифицирован
         };
     } catch (error) {
@@ -107,6 +108,7 @@ export async function getCurrentUserFromSessionCookie(): Promise<AuthenticatedUs
             email: validationResult.data.email,
             username: validationResult.data.username,
             role: validationResult.data.role,
+            avatarUrl: validationResult.data.avatarUrl,
             isVerified: true, // Если токен валиден, пользователь верифицирован
         };
     } catch (error) {

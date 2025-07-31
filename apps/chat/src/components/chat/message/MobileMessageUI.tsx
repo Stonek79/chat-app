@@ -3,6 +3,7 @@ import { getUsernameColor } from '@/utils/colorUtils';
 import { defaultAvatarName } from '../../ui';
 import type { MessageUIProps } from './types';
 import { useLayoutEffect, useRef, useState } from 'react';
+import { ReplyQuote } from './parts/ReplyQuote';
 
 export function MobileMessageUI(props: MessageUIProps) {
     const {
@@ -13,6 +14,7 @@ export function MobileMessageUI(props: MessageUIProps) {
         isNextMessageFromSameSender,
         content,
         footer,
+        isMobile,
         // actionsMenu - пока не используем, добавим с long-press
     } = props;
     const theme = useTheme();
@@ -21,11 +23,11 @@ export function MobileMessageUI(props: MessageUIProps) {
 
     useLayoutEffect(() => {
         if (timeRef.current) {
-          const rect = timeRef.current.getBoundingClientRect();
-          setTimeWidth(rect.width + 12); // 8px — зазор между текстом и временем
+            const rect = timeRef.current.getBoundingClientRect();
+            setTimeWidth(rect.width + 12); // 8px — зазор между текстом и временем
         }
-      }, [footer]);
-      
+    }, [footer]);
+
     // --- Логика для мобильного вида ---
     const showSenderName = isGroupChat && !isCurrentUser && !isSameSender;
     const showAvatar = isGroupChat && isNextMessageFromSameSender;
@@ -40,6 +42,7 @@ export function MobileMessageUI(props: MessageUIProps) {
 
     return (
         <Box
+            id={`message-${message.id}`}
             sx={{
                 display: 'flex',
                 justifyContent: align,
@@ -81,6 +84,7 @@ export function MobileMessageUI(props: MessageUIProps) {
                         height: '100%',
                     }}
                 >
+                    <ReplyQuote isMobile={isMobile} message={message} />
                     {showSenderName && (
                         <Typography
                             sx={{
@@ -99,7 +103,9 @@ export function MobileMessageUI(props: MessageUIProps) {
                             position: 'relative',
                         }}
                     >
-                        <Box style={{ paddingRight: `${timeWidth}px`, wordBreak: 'break-word' }}>{content}</Box>
+                        <Box style={{ paddingRight: `${timeWidth}px`, wordBreak: 'break-word' }}>
+                            {content}
+                        </Box>
 
                         <Box
                             ref={timeRef}

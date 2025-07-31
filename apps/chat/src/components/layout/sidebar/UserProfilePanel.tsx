@@ -33,8 +33,11 @@ export function UserProfilePanel({ user }: UserProfilePanelProps) {
             }}
         >
             <Box sx={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-                <Avatar sx={{ mr: 1.5, width: 40, height: 40, flexShrink: 0 }}>
-                    {/* Используем первую букву username как аватар */}
+                <Avatar
+                    sx={{ mr: 1.5, width: 40, height: 40, flexShrink: 0 }}
+                    src={user.avatarUrl ?? ''}
+                    alt={user.username}
+                >
                     {user.username ? user.username.charAt(0).toUpperCase() : 'П'}
                 </Avatar>
                 <Box sx={{ overflow: 'hidden' }}>

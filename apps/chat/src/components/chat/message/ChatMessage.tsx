@@ -1,16 +1,17 @@
 'use client';
 
-import { memo, useCallback } from 'react';
+import { memo } from 'react';
 import { ChatParticipantRole } from '@chat-app/db';
 import { useMobile } from '@/hooks';
 import { SystemMessage } from './SystemMessage';
-import { MessageActionsMenu } from './MessageActionsMenu';
-import { MessageContent } from './MessageContent';
-import { MessageFooter } from './MessageFooter';
+import { MessageActionsMenu } from './parts/MessageActionsMenu';
+import { MessageContent } from './parts/MessageContent';
+import { MessageFooter } from './parts/MessageFooter';
 import { DesktopMessageUI } from './DesktopMessageUI';
 import { MobileMessageUI } from './MobileMessageUI';
 import type { DisplayMessage } from '@chat-app/core';
 import type { MessageUIProps } from './types';
+import { SwipeToReplyWrapper } from './SwipeToReplyWrapper';
 
 interface ChatMessageProps {
     isSameSender: boolean;
@@ -20,11 +21,9 @@ interface ChatMessageProps {
     participantsCount: number;
     isCurrentUser: boolean;
     isNextMessageFromSameSender: boolean;
-    onEditRequest: (message: DisplayMessage) => void;
-    onDelete: (messageId: string) => void;
 }
 
-const ChatMessageComponent = (props: ChatMessageProps) => {
+export const ChatMessage = memo((props: ChatMessageProps) => {
     const {
         message,
         userRole,
@@ -33,19 +32,13 @@ const ChatMessageComponent = (props: ChatMessageProps) => {
         isGroupChat,
         isSameSender,
         isNextMessageFromSameSender,
-        onEditRequest,
-        onDelete,
     } = props;
 
-    const messageId = message.id;
     const isMobile = useMobile();
 
     if (message.contentType === 'SYSTEM') {
         return <SystemMessage message={message} />;
     }
-
-    const handleEdit = useCallback(() => onEditRequest(message), [message]);
-    const handleDelete = useCallback(() => onDelete(messageId), [messageId]);
 
     const canManageMessage =
         isCurrentUser ||
@@ -69,8 +62,6 @@ const ChatMessageComponent = (props: ChatMessageProps) => {
             isCurrentUserMessage={isCurrentUser}
             message={message}
             userRole={userRole}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
         />
     ) : null;
 
@@ -84,15 +75,16 @@ const ChatMessageComponent = (props: ChatMessageProps) => {
         content,
         footer,
         actionsMenu,
+        isMobile,
     };
 
     if (isMobile) {
-        return <MobileMessageUI {...uiProps} />;
+        return (
+            <SwipeToReplyWrapper message={message}>
+                <MobileMessageUI {...uiProps} />
+            </SwipeToReplyWrapper>
+        );
     }
 
     return <DesktopMessageUI {...uiProps} />;
-};
-
-ChatMessageComponent.displayName = 'ChatMessage';
-
-export const ChatMessage = memo(ChatMessageComponent);
+});

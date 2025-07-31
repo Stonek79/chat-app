@@ -68,19 +68,19 @@ export function convertMessagePayloadToDisplayMessage(
         chatId: payload.chatId,
         senderId: payload.sender.id,
         content: payload.content,
-        mediaUrl: null, // В payload нет mediaUrl
+        mediaUrl: payload.mediaUrl ?? null,
         contentType: payload.contentType,
         createdAt: payload.createdAt,
         updatedAt: payload.updatedAt,
         isEdited: false, // Новое сообщение не может быть отредактировано
         isPinned: false, // Новое сообщение не может быть закреплено
         status: 'SENT', 
-        replyToMessageId: null, 
+        replyToMessageId: payload.replyTo?.id ?? null, 
         forwardedFromMessageId: null, 
         sender: payload.sender,
         readReceipts: payload.readReceipts || [],
         actions: payload.actions || [],
-        replyTo: undefined,
+        replyTo: payload.replyTo ?? undefined,
         isCurrentUser,
     };
 }

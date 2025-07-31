@@ -1,10 +1,11 @@
-import { Avatar, Box, Typography, useTheme } from '@mui/material';
+import { Avatar, Box, Stack, Typography, useTheme } from '@mui/material';
 import { getUsernameColor } from '@/utils/colorUtils';
 import { defaultAvatarName } from '../../ui';
 import type { MessageUIProps } from './types';
+import { ReplyQuote } from './parts/ReplyQuote';
 
 export function DesktopMessageUI(props: MessageUIProps) {
-    const { message, isSameSender, content, footer, actionsMenu } = props;
+    const { message, isSameSender, content, footer, actionsMenu, isMobile } = props;
     const theme = useTheme();
 
     const showAvatarAndName = !isSameSender;
@@ -32,6 +33,7 @@ export function DesktopMessageUI(props: MessageUIProps) {
 
     return (
         <Box
+            id={`message-${message.id}`}
             sx={{
                 display: 'flex',
                 px: 2,
@@ -56,7 +58,10 @@ export function DesktopMessageUI(props: MessageUIProps) {
                         gap: 2,
                     }}
                 >
-                    <Box sx={{ maxWidth: '600px', wordBreak: 'break-word' }}>{content}</Box>
+                    <Stack>
+                        <ReplyQuote isMobile={isMobile} message={message} />
+                        <Box sx={{ maxWidth: '600px', wordBreak: 'break-word' }}>{content}</Box>
+                    </Stack>
                     <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                         <Box
                             className="message-actions"
