@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💬 Chat App
 
-## Getting Started
+Современное real-time чат-приложение, созданное с использованием стека Next.js, TypeScript, Socket.IO и Prisma. Проект организован как монорепозиторий с использованием pnpm workspaces и Turbo.
 
-First, run the development server:
+## ✨ Особенности
+
+-   **Real-time общение**: Мгновенная доставка сообщений через WebSockets (Socket.IO).
+-   **Групповые и личные чаты**: Поддержка различных типов чатов.
+-   **Ответы на сообщения**: Возможность цитировать и отвечать на конкретные сообщения.
+-   **Медиа-вложения**: Загрузка изображений и видео через S3-совместимое хранилище (MinIO для разработки).
+-   **Аутентификация**: Безопасная система входа на основе JWT.
+-   **Типобезопасность**: Строгая типизация от базы данных до фронтенда с помощью Prisma и Zod.
+-   **Масштабируемая архитектура**: Проект разбит на логические пакеты (`@chat-app/core`, `@chat-app/db` и т.д.).
+
+## 🛠️ Технологический стек
+
+-   **Фреймворк**: [Next.js](https://nextjs.org/) (App Router)
+-   **Язык**: [TypeScript](https://www.typescriptlang.org/)
+-   **UI**: [Material-UI (MUI)](https://mui.com/)
+-   **Real-time**: [Socket.IO](https://socket.io/)
+-   **База данных**: [PostgreSQL](https://www.postgresql.org/)
+-   **ORM**: [Prisma](https://www.prisma.io/)
+-   **Валидация**: [Zod](https://zod.dev/)
+-   **Стор**: [Zustand](https://zustand-demo.pmnd.rs/)
+-   **Монорепозиторий**: [pnpm Workspaces](https://pnpm.io/workspaces) + [Turborepo](https://turbo.build/repo)
+-   **Контейнеризация**: [Docker](https://www.docker.com/)
+
+## 🚀 Быстрый старт (локальная разработка)
+
+### Требования
+
+-   Node.js (v20+)
+-   pnpm (v9+)
+-   Docker и Docker Compose
+
+### 1. Клонирование репозитория
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/Stonek79/chat-app.git
+cd chat-app
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Установка зависимостей
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Настройка окружения
 
-## Learn More
+Скопируйте пример файла с переменными окружения:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+cp .env.example .env
+```
+*В файле `.env` уже содержатся все необходимые настройки для локального запуска.*
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 4. Запуск зависимостей в Docker
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Мы используем Docker для запуска сервисов, от которых зависит приложение (база данных, кэш).
 
-## Deploy on Vercel
+```bash
+docker compose up -d postgres redis
+```
+> Эта команда запустит PostgreSQL и Redis в фоновом режиме.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 5. Применение миграций и сидирование БД
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm --filter @chat-app/db run db:migrate
+pnpm --filter @chat-app/db run db:seed
+```
+
+### 6. Запуск приложения
+
+Запустите основное приложение и сокет-сервер в dev-режиме:
+
+```bash
+pnpm dev
+```
+
+Приложение будет доступно по адресу [http://localhost:3000](http://localhost:3000).
+
+---
+
+## 🐳 Полный запуск через Docker
+
+Для получения более подробной информации о запуске всего стека в Docker, включая S3-хранилище и Nginx, обратитесь к файлу **[DOCKER.md](./DOCKER.md)**.
