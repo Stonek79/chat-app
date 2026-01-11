@@ -21,6 +21,7 @@ interface ChatMessageProps {
     participantsCount: number;
     isCurrentUser: boolean;
     isNextMessageFromSameSender: boolean;
+    isGlobalAdmin: boolean;
 }
 
 export const ChatMessage = memo((props: ChatMessageProps) => {
@@ -32,6 +33,7 @@ export const ChatMessage = memo((props: ChatMessageProps) => {
         isGroupChat,
         isSameSender,
         isNextMessageFromSameSender,
+        isGlobalAdmin,
     } = props;
 
     const isMobile = useMobile();
@@ -39,11 +41,6 @@ export const ChatMessage = memo((props: ChatMessageProps) => {
     if (message.contentType === 'SYSTEM') {
         return <SystemMessage message={message} />;
     }
-
-    const canManageMessage =
-        isCurrentUser ||
-        userRole === ChatParticipantRole.ADMIN ||
-        userRole === ChatParticipantRole.OWNER;
 
     const content = <MessageContent message={message} isCurrentUser={isCurrentUser} />;
 
@@ -57,13 +54,14 @@ export const ChatMessage = memo((props: ChatMessageProps) => {
         />
     );
 
-    const actionsMenu = canManageMessage ? (
+    const actionsMenu = (
         <MessageActionsMenu
             isCurrentUserMessage={isCurrentUser}
             message={message}
             userRole={userRole}
+            isGlobalAdmin={isGlobalAdmin}
         />
-    ) : null;
+    );
 
     // Формируем пропсы для UI-компонентов
     const uiProps: MessageUIProps = {

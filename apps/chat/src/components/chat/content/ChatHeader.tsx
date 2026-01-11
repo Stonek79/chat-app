@@ -19,14 +19,19 @@ import {
 } from '@mui/material';
 
 interface ChatHeaderProps {
+    chatId: string;
     chatName: string;
     chatAvatarUrl?: string | null;
-    status: string; // Например, "в сети" или "5 участников"
+    status: string;
+    canDelete: boolean;
+    onDelete?: () => void;
+    isOnline?: boolean;
 }
 
-export const ChatHeader = ({ chatName, chatAvatarUrl, status }: ChatHeaderProps) => {
+export const ChatHeader = ({ chatId, chatName, chatAvatarUrl, status, canDelete, onDelete, isOnline }: ChatHeaderProps) => {
     const router = useRouter();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
     const open = Boolean(anchorEl);
 
     const handleMenu = (event: MouseEvent<HTMLElement>) => {
@@ -41,6 +46,13 @@ export const ChatHeader = ({ chatName, chatAvatarUrl, status }: ChatHeaderProps)
         router.push(CHAT_PAGE_ROUTE);
     };
 
+    const handleDeleteClick = () => {
+        handleClose();
+        if (onDelete) {
+            onDelete();
+        }
+    };
+
     return (
         <AppBar
             position="static"
@@ -53,14 +65,12 @@ export const ChatHeader = ({ chatName, chatAvatarUrl, status }: ChatHeaderProps)
             }}
         >
             <Toolbar sx={{ minHeight: 'sm' }}>
-                {' '}
-                {/* TODO: fix interface */}
                 <IconButton
                     edge="start"
                     color="inherit"
                     aria-label="назад"
                     onClick={handleGoBack}
-                    sx={{ mr: 1, display: { md: 'none' } }} // Скрываем только на больших экранах
+                    sx={{ mr: 1, display: { md: 'none' } }}
                 >
                     <ArrowBackIcon />
                 </IconButton>
@@ -71,9 +81,22 @@ export const ChatHeader = ({ chatName, chatAvatarUrl, status }: ChatHeaderProps)
                     <Typography variant="subtitle1" component="div" sx={{ lineHeight: 1.2 }}>
                         {chatName}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.2 }}>
-                        {status}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {isOnline !== undefined && (
+                            <Box
+                                sx={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: '50%',
+                                    bgcolor: isOnline ? 'success.main' : 'text.disabled',
+                                    flexShrink: 0,
+                                }}
+                            />
+                        )}
+                        <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.2 }}>
+                            {status}
+                        </Typography>
+                    </Box>
                 </Box>
                 <Box>
                     <IconButton color="inherit" sx={{ color: 'text.secondary' }}>
@@ -82,7 +105,11 @@ export const ChatHeader = ({ chatName, chatAvatarUrl, status }: ChatHeaderProps)
                     <IconButton color="inherit" sx={{ color: 'text.secondary' }}>
                         <SearchIcon />
                     </IconButton>
-                    <IconButton color="inherit" sx={{ color: 'text.secondary' }}>
+                    <IconButton 
+                        color="inherit" 
+                        sx={{ color: 'text.secondary' }}
+                        onClick={handleMenu}
+                    >
                         <MoreVertIcon />
                     </IconButton>
                 </Box>
@@ -101,12 +128,13 @@ export const ChatHeader = ({ chatName, chatAvatarUrl, status }: ChatHeaderProps)
                     open={open}
                     onClose={handleClose}
                 >
-                    {/* TODO: Добавить реальные действия */}
                     <MenuItem onClick={handleClose}>Поиск по чату</MenuItem>
                     <MenuItem onClick={handleClose}>Информация</MenuItem>
-                    <MenuItem onClick={handleClose} sx={{ color: 'error.main' }}>
-                        Выйти из чата
-                    </MenuItem>
+                    {canDelete && (
+                        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
+                            Удалить чат
+                        </MenuItem>
+                    )}
                 </Menu>
             </Toolbar>
         </AppBar>

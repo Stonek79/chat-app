@@ -40,4 +40,21 @@ export type MessageDeletedPayload = {
     chatId: string;
 };
 
+export interface ChatDeletedPayload {
+    chatId: string;
+    userId: string; // ID пользователя, который удалил чат
+}
+
 export type MessageEditedPayload = DisplayMessage;
+
+export interface UserStatusChangedPayload {
+    userId: string;
+    isOnline: boolean;
+    lastSeenAt: string | null; // ISO string when sent over JSON/socket
+}
+
+export interface TypingPayload {
+    chatId: string;
+    userId: string;
+    username?: string; // Optional for display
+}

@@ -206,6 +206,21 @@ async function handleMarkAsRead(socket: AppSocket, payload: { chatId: string; me
                 `[MarkAsRead] User ${user.username} marked message ${messageId} as read in chat ${chatId}.`
             );
         }
+
+        // 5. Создаем запись о прочтении (для корректного подсчета непрочитанных в API)
+        await prisma.messageReadReceipt.upsert({
+            where: {
+                messageId_userId: {
+                    messageId,
+                    userId: user.userId,
+                },
+            },
+            create: {
+                messageId,
+                userId: user.userId,
+            },
+            update: {},
+        });
     } catch (error) {
         console.error(`[MarkAsRead] Error for user ${user.username} in chat ${chatId}:`, error);
     }

@@ -5,7 +5,6 @@ import {
     REDIS_EVENT_MESSAGE_DELETED,
     REDIS_EVENT_MESSAGE_EDITED,
     REDIS_SOCKET_NOTIFICATIONS_CHANNEL,
-    toClientMessageAction,
     toDisplayMessage,
 } from '@chat-app/core';
 import { ChatParticipantRole, ActionType, UserRole } from '@chat-app/db';
@@ -56,7 +55,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { messageId
 
         const isAuthor = message.senderId === currentUserId;
 
-        if (!isAuthor || !isAdminOrOwner) {
+        // Удалять может либо автор своего сообщения, либо админ/владелец чата или системы
+        const canDelete = isAuthor || isAdminOrOwner;
+
+        if (!canDelete) {
             return NextResponse.json(
                 { error: 'You do not have permission to delete this message' },
                 { status: 403 }
@@ -121,9 +123,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { messageId:
             ...body,
             messageId,
         };
-
+        
         const validationResult = editMessageSchema.safeParse(dataToValidate);
-
+        
         if (!validationResult.success) {
             return NextResponse.json(
                 { error: 'Invalid data', details: validationResult.error },
@@ -131,7 +133,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { messageId:
             );
         }
 
-        const { content } = validationResult.data;
+        const { content, mediaUrl, contentType } = validationResult.data;
         const currentUserId = currentUser.id;
 
         // 1. Найти сообщение для проверки прав
@@ -149,10 +151,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { messageId:
             (new Date().getTime() - new Date(message.createdAt).getTime()) / (1000 * 60) <
             MESSAGE_DELETION_WINDOW_MINUTES;
 
-        const isAdmin = currentUser.role === UserRole.ADMIN;
+        const isAdmin = currentUser.role === 'ADMIN';
 
-        // Только автор может редактировать, и только в пределах временного окна
-        if (!isAdmin || (!isTimeWindowOk && !isAuthor)) {
+        // Только автор может редактировать (в пределах окна) или Админ (всегда)
+        const canEdit = isAdmin || (isAuthor && isTimeWindowOk);
+
+        if (!canEdit) {
             return NextResponse.json(
                 { error: 'You do not have permission to edit this message' },
                 { status: 403 }
@@ -171,11 +175,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { messageId:
                 },
                 include: { actor: true },
             });
-
+            
             // 3.2. Обновляем само сообщение, чтобы оно содержало актуальный контент
             const message = await tx.message.update({
                 where: { id: messageId },
-                data: { content: content, isEdited: true },
+                data: {
+                    content: content,
+                    mediaUrl: mediaUrl,
+                    contentType: contentType,
+                    isEdited: true,
+                },
                 include: {
                     sender: true,
                     actions: {
@@ -193,7 +202,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { messageId:
                         },
                     },
                 },
-            });
+            });            
 
             return { updatedMessage: message, editAction: action };
         });

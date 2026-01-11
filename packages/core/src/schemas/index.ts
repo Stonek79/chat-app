@@ -4,3 +4,4 @@ export * from './user';
 export * from './chat';
 export * from './message';
 export * from './common';
+export * from './media';

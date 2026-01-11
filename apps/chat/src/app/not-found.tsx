@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { HOME_PAGE_ROUTE } from '@chat-app/core';
 import Box from '@mui/material/Box';

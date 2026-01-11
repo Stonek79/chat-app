@@ -143,27 +143,29 @@ export function toChatWithDetails(
     const members = prismaChat.participants.map(p => toChatParticipantInfo(p));
     const currentUserParticipant = members.find(p => p.userId === currentUserId);
 
-    if (!currentUserParticipant) {
-        throw new Error(
-            `Пользователь ${currentUserId} не является участником чата ${prismaChat.id}`
-        );
-    }
+    // Разрешаем просмотр чата не учасникам (например, глобальным админам)
 
     const messages = prismaChat.messages.map(m => toDisplayMessage(m, currentUserId));
     const lastMessage = messages.length > 0 ? messages[0] : undefined;
     const unreadCount = prismaChat._count?.messages ?? 0;
 
     const participantCount = prismaChat._count?.participants ?? prismaChat.participants.length;
+    
     const canEdit =
-        currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
-        currentUserParticipant.role === DEFAULT_ROLES.ADMIN;
-    const canDelete = currentUserParticipant.role === DEFAULT_ROLES.OWNER;
+        !!currentUserParticipant &&
+        (currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
+        currentUserParticipant.role === DEFAULT_ROLES.ADMIN);
+    const canDelete = 
+        !!currentUserParticipant && 
+        currentUserParticipant.role === DEFAULT_ROLES.OWNER;
     const canAddMembers =
-        currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
-        currentUserParticipant.role === DEFAULT_ROLES.ADMIN;
+        !!currentUserParticipant &&
+        (currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
+        currentUserParticipant.role === DEFAULT_ROLES.ADMIN);
     const canRemoveMembers =
-        currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
-        currentUserParticipant.role === DEFAULT_ROLES.ADMIN;
+        !!currentUserParticipant &&
+        (currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
+        currentUserParticipant.role === DEFAULT_ROLES.ADMIN);
 
     return {
         id: prismaChat.id,
@@ -204,11 +206,7 @@ export function toChatWithDetailsFromPartial({
     const members = prismaChat.participants.map(p => toChatParticipantInfoFromPartial(p));
     const currentUserParticipant = members.find(p => p.userId === currentUserId);
 
-    if (!currentUserParticipant) {
-        throw new Error(
-            `Пользователь ${currentUserId} не является участником чата ${prismaChat.id}`
-        );
-    }
+    // Разрешаем просмотр чата не учасникам (например, глобальным админам)
 
     const clientChat = toClientChatManual(
         prismaChat,
@@ -219,16 +217,22 @@ export function toChatWithDetailsFromPartial({
     );
 
     const participantCount = prismaChat._count?.participants ?? prismaChat.participants.length;
+    
     const canEdit =
-        currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
-        currentUserParticipant.role === DEFAULT_ROLES.ADMIN;
-    const canDelete = currentUserParticipant.role === DEFAULT_ROLES.OWNER;
+        !!currentUserParticipant &&
+        (currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
+        currentUserParticipant.role === DEFAULT_ROLES.ADMIN);
+    const canDelete = 
+        !!currentUserParticipant && 
+        currentUserParticipant.role === DEFAULT_ROLES.OWNER;
     const canAddMembers =
-        currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
-        currentUserParticipant.role === DEFAULT_ROLES.ADMIN;
+        !!currentUserParticipant &&
+        (currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
+        currentUserParticipant.role === DEFAULT_ROLES.ADMIN);
     const canRemoveMembers =
-        currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
-        currentUserParticipant.role === DEFAULT_ROLES.ADMIN;
+        !!currentUserParticipant &&
+        (currentUserParticipant.role === DEFAULT_ROLES.OWNER ||
+        currentUserParticipant.role === DEFAULT_ROLES.ADMIN);
 
     return {
         ...clientChat,

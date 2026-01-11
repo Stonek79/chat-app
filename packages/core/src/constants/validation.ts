@@ -39,6 +39,10 @@ export const VALIDATION_MESSAGES = {
 
     FILE_TOO_LARGE: 'Файл слишком большой',
     UNSUPPORTED_FILE_TYPE: 'Неподдерживаемый тип файла',
+
+    FILENAME_REQUIRED: 'Имя файла обязательно',
+    INVALID_MIME_TYPE: 'Неверный MIME-тип файла',
+    INVALID_CHAT_ID: 'Неверный ID чата',
 } as const;
 
 // Коды ошибок

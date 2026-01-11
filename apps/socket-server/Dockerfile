@@ -86,9 +86,9 @@ USER socketuser
 
 # Переменные окружения
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=3003
 
-EXPOSE 3001
+EXPOSE 3003
 
 # Запускаем скомпилированный сервер
 CMD ["node", "apps/socket-server/dist/server.js"] 

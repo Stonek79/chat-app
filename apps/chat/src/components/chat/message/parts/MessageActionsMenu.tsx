@@ -13,6 +13,7 @@ interface MessageActionsMenuProps {
     message: DisplayMessage;
     userRole: ChatParticipantRole;
     isCurrentUserMessage: boolean;
+    isGlobalAdmin: boolean;
 }
 
 // TODO: Перенести лимит в пользовательские настройки (от 5 до 15 минут)
@@ -22,6 +23,7 @@ export const MessageActionsMenu = ({
     message,
     userRole,
     isCurrentUserMessage,
+    isGlobalAdmin,
 }: MessageActionsMenuProps) => {
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const { setMessageToEdit, deleteMessage, setReplyToMessage } = useChatStore(
@@ -34,10 +36,11 @@ export const MessageActionsMenu = ({
     );
 
     const isAdminOrOwner =
-        userRole === ChatParticipantRole.ADMIN || userRole === ChatParticipantRole.OWNER;
+        userRole === ChatParticipantRole.ADMIN || userRole === ChatParticipantRole.OWNER || isGlobalAdmin;
 
     const canEdit = () => {
-        if (userRole === ChatParticipantRole.ADMIN && isCurrentUserMessage) {
+        // Global Admin and Chat Admin/Owner can edit ANY message
+        if (isAdminOrOwner) {
             return true;
         }
 
@@ -51,16 +54,12 @@ export const MessageActionsMenu = ({
     };
 
     const canDelete = () => {
-        // Админ или владелец чата могут удалить любое сообщение
+        // Админ или владелец чата (и глобальный админ) могут удалить любое сообщение
         if (isAdminOrOwner) return true;
 
         // Автор может удалить свое сообщение
         return isCurrentUserMessage;
     };
-
-    if (!canEdit() && !canDelete()) {
-        return null;
-    }
 
     const handleMenuOpen = (event: MouseEvent<HTMLElement>) => {
         setMenuAnchorEl(event.currentTarget);

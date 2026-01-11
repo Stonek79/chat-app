@@ -5,7 +5,7 @@ import { toChatWithDetailsFromPartial, createChatSchema } from '@chat-app/core';
 import { ChatParticipantRole } from '@chat-app/db';
 
 import { ApiError, getCurrentUser, handleApiError, prisma } from '@/lib';
-// import { publishNotification } from '@chat-app/server-shared';
+import { publishNotification } from '@chat-app/server-shared';
 
 /**
  * POST /api/chats/create
@@ -276,7 +276,7 @@ export async function POST(request: NextRequest) {
                 };
                 const redisChannel =
                     process.env.REDIS_SOCKET_NOTIFICATIONS_CHANNEL || 'socket-notifications';
-                // await publishNotification(redisChannel, notificationPayload);
+                await publishNotification(redisChannel, notificationPayload);
                 console.log(
                     `[API Create Chat] Published NEW_CHAT event to Redis for chat ${clientChat.id}`
                 );

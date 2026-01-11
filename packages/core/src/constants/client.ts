@@ -37,10 +37,12 @@ export const API_CHATS_CREATE_ROUTE = '/api/chats/create';
 // Сообщения
 export const API_MESSAGES_ROUTE = '/api/messages';
 export const API_MESSAGES_FORWARD_ROUTE = '/api/messages/forward';
+export const API_MEDIA_PRESIGNED_URL_ROUTE = '/api/media/presigned-url';
 
 // Файлы
 export const API_FILES_UPLOAD_ROUTE = '/api/files/upload';
 export const API_FILES_AVATAR_ROUTE = '/api/files/avatar';
+
 
 // Администрирование
 export const API_ADMIN_DASHBOARD_ROUTE = '/api/admin/dashboard';

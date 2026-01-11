@@ -14,7 +14,6 @@ import {
 } from '@chat-app/socket-shared';
 import useChatStore from '@/store/chatStore';
 import { convertMessagePayloadToDisplayMessage } from '@chat-app/core';
-import { useSocketConnection } from './useSocketConnection';
 
 export const useChatLifecycle = (chatId: string | null) => {
     // Получаем все необходимые экшены из стора
@@ -22,12 +21,8 @@ export const useChatLifecycle = (chatId: string | null) => {
     const updateMessage = useChatStore(state => state.updateMessage);
     const removeMessage = useChatStore(state => state.removeMessage);
 
-    const { isConnected } = useSocketConnection();
-
     // Этот useEffect отвечает за подписку на события
     useEffect(() => {
-        if (!isConnected) return;
-
         const socket = getSocket();
 
         const handleNewMessage = (payload: MessagePayload) => {
@@ -52,12 +47,12 @@ export const useChatLifecycle = (chatId: string | null) => {
             socket.off(SERVER_EVENT_MESSAGE_EDITED, handleMessageEdited);
             socket.off(SERVER_EVENT_MESSAGE_DELETED, handleMessageDeleted);
         };
-    }, [chatId, addMessage, updateMessage, removeMessage, isConnected]);
+    }, [chatId, addMessage, updateMessage, removeMessage]);
 
     // Этот useEffect отвечает за вход/выход из комнаты
     useEffect(() => {
         const socket = getSocket();
-        if (chatId && isConnected) {
+        if (chatId) {
             console.log(`[useChatLifecycle] Joining room: ${chatId}`);
             socket.emit(CLIENT_EVENT_JOIN_CHAT, chatId);
         }
@@ -68,5 +63,5 @@ export const useChatLifecycle = (chatId: string | null) => {
                 socket.emit(CLIENT_EVENT_LEAVE_CHAT, chatId);
             }
         };
-    }, [chatId, isConnected]); // Зависит от chatId и статуса соединения
+    }, [chatId]); // Зависит только от chatId
 };

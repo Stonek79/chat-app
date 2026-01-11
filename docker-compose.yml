@@ -38,7 +38,7 @@ services:
             context: .
             dockerfile: ./apps/socket-server/Dockerfile
         ports:
-            - '${SOCKET_PORT:-3001}:3001'
+            - '${SOCKET_PORT:-3003}:3003'
         depends_on:
             - redis
         volumes:
@@ -68,6 +68,30 @@ services:
             - app-network
         healthcheck:
             test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        restart: unless-stopped
+
+    #---------------------------------------------------------------------------
+    # MinIO S3-совместимое хранилище
+    #---------------------------------------------------------------------------
+    minio:
+        container_name: minio_s3_storage
+        image: minio/minio:latest
+        ports:
+            - '${MINIO_PORT:-9000}:9000'      # API Port
+            - '${MINIO_CONSOLE_PORT:-9001}:9001' # Web Console Port
+        environment:
+            - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+            - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+        command: server /data --console-address ":9001"
+        volumes:
+            - minio_data:/data
+        networks:
+            - app-network
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
             interval: 10s
             timeout: 5s
             retries: 5
@@ -117,6 +141,8 @@ networks:
 
 volumes:
     redis_data:
+        driver: local
+    minio_data:
         driver: local
     uploads:
         driver: local

@@ -1,10 +1,10 @@
 import {
     CHAT_NAMESPACE,
     SERVER_EVENT_CHAT_CREATED,
+    SERVER_EVENT_CHAT_DELETED,
     SERVER_EVENT_MESSAGE_DELETED,
     SERVER_EVENT_MESSAGE_EDITED,
-    messageEditedPayloadSchema,
-    messageDeletedPayloadSchema,
+    redisNotificationSchema,
 } from '@chat-app/socket-shared';
 import type {
     AppSocketServer,
@@ -16,33 +16,11 @@ import {
     REDIS_EVENT_MESSAGE_DELETED,
     REDIS_EVENT_NEW_CHAT,
     REDIS_EVENT_MESSAGE_EDITED,
-    chatWithDetailsSchema,
+    REDIS_EVENT_CHAT_DELETED,
 } from '@chat-app/core';
-import { getNotificationSubscriber, getServerConfig } from '@chat-app/server-shared';
-import { z } from 'zod';
+import { getServerConfig, getNotificationSubscriber } from '@chat-app/server-shared';
 
 const config = getServerConfig();
-
-const newChatNotificationSchema = z.object({
-    type: z.literal(REDIS_EVENT_NEW_CHAT),
-    data: chatWithDetailsSchema,
-});
-
-const messageEditedNotificationSchema = z.object({
-    type: z.literal(REDIS_EVENT_MESSAGE_EDITED),
-    data: messageEditedPayloadSchema,
-});
-
-const messageDeletedNotificationSchema = z.object({
-    type: z.literal(REDIS_EVENT_MESSAGE_DELETED),
-    data: messageDeletedPayloadSchema,
-});
-
-const redisNotificationSchema = z.discriminatedUnion('type', [
-    newChatNotificationSchema,
-    messageEditedNotificationSchema,
-    messageDeletedNotificationSchema,
-]);
 
 /**
  * Обрабатывает уведомление о создании нового чата.
@@ -56,17 +34,43 @@ function handleNewChat(io: AppSocketServer, data: ChatWithDetails) {
     // Но для надежности можно оставить.
     if (chatData?.id && Array.isArray(chatData.members)) {
         console.log(`[Redis Handler] Processing NEW_CHAT for chat ${chatData.id}`);
+        // Используем пространство имен /chat
         const chatNamespace = io.of(CHAT_NAMESPACE);
+        
         chatData.members.forEach(member => {
-            if (member?.id) {
-                chatNamespace.to(member.id).emit(SERVER_EVENT_CHAT_CREATED, chatData);
+            if (member?.userId) {
+                // ВАЖНО: Мы отправляем в комнату пользователя (member.userId), 
+                // так как он еще может не быть подключен к комнате чата.
+                chatNamespace.to(member.userId).emit(SERVER_EVENT_CHAT_CREATED, chatData);
                 console.log(
-                    `[Redis Handler] Emitted SERVER_EVENT_CHAT_CREATED to user ${member.id} for new chat ${chatData.id}`
+                    `[Redis Handler] Emitted SERVER_EVENT_CHAT_CREATED to user ${member.userId} for new chat ${chatData.id}`
                 );
             }
         });
     } else {
         console.warn('[Redis Handler] Invalid NEW_CHAT payload received:', data);
+    }
+}
+
+/**
+ * Обрабатывает уведомление об удалении чата.
+ * @param io - Экземпляр сервера Socket.IO.
+ * @param data - Полезная нагрузка уведомления.
+ */
+function handleChatDeleted(io: AppSocketServer, data: { chatId: string; memberIds: string[]; userId: string }) {
+    const { chatId, memberIds, userId } = data;
+    if (chatId && Array.isArray(memberIds)) {
+        console.log(`[Redis Handler] Processing CHAT_DELETED for chat ${chatId}`);
+        const chatNamespace = io.of(CHAT_NAMESPACE);
+        
+        memberIds.forEach(memberId => {
+             // Отправляем всем участникам, чтобы они удалили чат из списка
+             chatNamespace.to(memberId).emit(SERVER_EVENT_CHAT_DELETED, { chatId, userId });
+        });
+        
+        console.log(`[Redis Handler] Emitted SERVER_EVENT_CHAT_DELETED to members of chat ${chatId}`);
+    } else {
+        console.warn('[Redis Handler] Invalid CHAT_DELETED payload received:', data);
     }
 }
 
@@ -134,6 +138,10 @@ function onMessage(io: AppSocketServer, channel: string, message: string) {
         switch (payload.type) {
             case REDIS_EVENT_NEW_CHAT:
                 handleNewChat(io, payload.data);
+                break;
+
+            case REDIS_EVENT_CHAT_DELETED:
+                handleChatDeleted(io, payload.data);
                 break;
 
             case REDIS_EVENT_MESSAGE_EDITED:

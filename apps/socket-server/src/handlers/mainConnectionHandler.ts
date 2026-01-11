@@ -1,6 +1,8 @@
 import { registerMessageHandlers } from './messageHandlers';
 import { registerRoomHandlers } from './roomHandlers';
-import type { AppSocketServer, AppSocket } from '@chat-app/socket-shared';
+import { registerTypingHandlers } from './typingHandler';
+import { type AppSocketServer, type AppSocket, SERVER_EVENT_USER_STATUS_CHANGED } from '@chat-app/socket-shared';
+import { PresenceService } from '@chat-app/server-shared';
 
 /**
  * Главный обработчик события подключения к сокету.
@@ -22,6 +24,22 @@ export const onConnection = (io: AppSocketServer, socket: AppSocket) => {
 
     // Присоединяем пользователя к его персональной комнате для получения личных уведомлений
     socket.join(user.userId);
+    
+    // Обновляем статус присутствия в Redis
+    // Не блокируем основной поток, но логируем ошибки
+    PresenceService.setUserOnline(user.userId)
+        .then(() => {
+             // Broadcast online status to everyone else
+             socket.broadcast.emit(SERVER_EVENT_USER_STATUS_CHANGED, {
+                 userId: user.userId,
+                 isOnline: true,
+                 lastSeenAt: null // Currently online
+             });
+        })
+        .catch((err: unknown) => 
+            console.error(`[Connection] Failed to set online status for ${user.userId}:`, err)
+        );
+
     console.log(
         `[Connection] Пользователь ${user.username} (ID: ${user.userId}) аутентифицирован и подключен. Socket ID: ${socket.id}.`
     );
@@ -35,13 +53,28 @@ export const onConnection = (io: AppSocketServer, socket: AppSocket) => {
     // Регистрируем обработчики комнат
     registerRoomHandlers(socket);
 
+    // Регистрируем обработчики печати
+    registerTypingHandlers(io, socket);
+
     // Обработчик отключения
     socket.on('disconnect', reason => {
         console.log(
             `[Connection] Пользователь ${user.username} (Socket: ${socket.id}) отключился. Причина: ${reason}`
         );
-        // Здесь можно добавить логику для уведомления других пользователей о том, что юзер вышел из сети,
-        // если это необходимо для вашего приложения.
+        
+        // Обновляем статус присутствия (ставим offline и обновляем lastSeenAt в БД)
+        PresenceService.setUserOffline(user.userId)
+            .then(() => {
+                // Broadcast offline status
+                 socket.broadcast.emit(SERVER_EVENT_USER_STATUS_CHANGED, {
+                     userId: user.userId,
+                     isOnline: false,
+                     lastSeenAt: new Date().toISOString()
+                 });
+            })
+            .catch((err: unknown) => 
+                console.error(`[Connection] Failed to set offline status for ${user.userId}:`, err)
+            );
     });
 
     // Обработчик для кастомных ошибок от клиента

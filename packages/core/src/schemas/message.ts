@@ -78,6 +78,7 @@ export const displayMessageSchema = messageSchema.extend({
     actions: z.array(messageActionInfoSchema),
     replyTo: replyInfoSchema,
     isCurrentUser: z.boolean(),
+    isOptimistic: z.boolean().optional(),
 });
 
 // API схемы для отправки сообщений
@@ -109,13 +110,23 @@ export const sendMessageSchema = z
         }
     );
 
-export const editMessageSchema = z.object({
-    messageId: z.cuid(),
-    content: z
-        .string()
-        .min(1, VALIDATION_MESSAGES.MESSAGE_EMPTY)
-        .max(VALIDATION_RULES.MESSAGE.maxLength, VALIDATION_MESSAGES.MESSAGE_TOO_LONG),
-});
+export const editMessageSchema = z
+    .object({
+        messageId: z.cuid(),
+        content: z
+            .string()
+            .min(1, VALIDATION_MESSAGES.MESSAGE_EMPTY)
+            .max(VALIDATION_RULES.MESSAGE.maxLength, VALIDATION_MESSAGES.MESSAGE_TOO_LONG),
+        mediaUrl: z.url(VALIDATION_MESSAGES.INVALID_MEDIA_URL).optional().nullable(),
+        contentType: z.enum(MessageContentType).optional(),
+    })
+    .refine(
+        data => {
+            // Убедимся, что либо контент, либо медиа присутствуют
+            return data.content || data.mediaUrl;
+        },
+        { message: VALIDATION_MESSAGES.MESSAGE_EMPTY }
+    );
 
 export const forwardMessageSchema = z.object({
     messageId: z.cuid(),
@@ -123,6 +134,8 @@ export const forwardMessageSchema = z.object({
         .array(z.cuid())
         .min(1, VALIDATION_MESSAGES.NO_CHATS_SELECTED)
         .max(10, VALIDATION_MESSAGES.TOO_MANY_CHATS_FOR_FORWARD),
+    mediaUrl: z.url(VALIDATION_MESSAGES.INVALID_MEDIA_URL).optional().nullable(),
+    contentType: z.enum(MessageContentType).optional(),
 });
 
 // Схемы для статусов прочтения

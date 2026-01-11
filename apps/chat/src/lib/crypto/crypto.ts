@@ -42,7 +42,7 @@ export async function encryptData(
         const ciphertext = await crypto.subtle.encrypt(
             {
                 name: AES_KEY_ALGORITHM,
-                iv: iv,
+                iv: iv as unknown as BufferSource,
             },
             key,
             data
@@ -70,7 +70,7 @@ export async function decryptData(
         return await crypto.subtle.decrypt(
             {
                 name: AES_KEY_ALGORITHM,
-                iv: iv,
+                iv: iv as unknown as BufferSource,
             },
             key,
             ciphertext

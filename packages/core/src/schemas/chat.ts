@@ -28,6 +28,8 @@ export const chatParticipantInfoSchema = z.object({
         email: z.email(),
         avatarUrl: z.string().nullable(),
         role: z.string(),
+        isOnline: z.boolean().default(false),
+        lastSeenAt: z.coerce.date().nullable().default(null),
     }),
 });
 
@@ -131,14 +133,7 @@ export const chatWithDetailsSchema = clientChatSchema.extend({
     canRemoveMembers: z.boolean(),
 });
 
-export const chatListResponseSchema = z.object({
-    chats: z.array(chatWithDetailsSchema),
-});
-
-export const chatResponseSchema = z.object({
-    chat: chatWithDetailsSchema,
-});
-
+// Moved up
 export const chatListItemSchema = z.object({
     id: z.cuid(),
     name: z.string().nullable(),
@@ -162,6 +157,17 @@ export const chatListItemSchema = z.object({
         .nullable()
         .optional(),
 });
+
+export const chatListResponseSchema = z.object({
+    chats: z.array(chatListItemSchema),
+    nextCursor: z.string().nullable().optional(),
+});
+
+export const chatResponseSchema = z.object({
+    chat: chatWithDetailsSchema,
+});
+
+
 
 export const chatMessagesResponseSchema = z.object({
     messages: z.array(displayMessageSchema),

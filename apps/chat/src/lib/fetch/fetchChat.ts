@@ -44,6 +44,9 @@ export const fetchChat = async (chatId: string) => {
         return parsedChat.data.chat;
     } catch (e) {
         console.log(e);
-        throw Error();
+        if (e instanceof Error) {
+            throw new Error(`fetchChat error: ${e.message}`);
+        }
+        throw new Error('fetchChat error: Unknown error');
     }
 };

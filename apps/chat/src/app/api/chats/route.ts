@@ -17,18 +17,34 @@ export async function GET(request: NextRequest) {
             return new ApiError(ERROR_MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED);
         }
 
+        const isAdmin = currentUser.role === 'ADMIN';
+
+        const limit = parseInt(request.nextUrl.searchParams.get('limit') || '20');
+        const cursor = request.nextUrl.searchParams.get('cursor'); // timestamp
+
+        const queryLimit = Math.min(Math.max(limit, 1), 50);
+
+        const whereClause: any = isAdmin ? {} : {
+            participants: {
+                some: {
+                    userId: currentUser.id,
+                },
+            },
+        };
+
+        if (cursor) {
+            whereClause.updatedAt = {
+                lt: new Date(cursor),
+            };
+        }
+
         // Получаем чаты с правильными связями
         const prismaChats = await prisma.chat.findMany({
             orderBy: {
                 updatedAt: 'desc',
             },
-            where: {
-                participants: {
-                    some: {
-                        userId: currentUser.id,
-                    },
-                },
-            },
+            take: queryLimit + 1, // +1 для проверки следующей страницы
+            where: whereClause,
             include: {
                 participants: {
                     include: {
@@ -77,10 +93,24 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        // Маппим данные в нужный формат для клиента
-        const chats = prismaChats.map(chat => toChatListItem(chat, currentUser.id));
+        let nextCursor: string | null = null;
+        if (prismaChats.length > queryLimit) {
+            const nextItem = prismaChats.pop(); // Удаляем лишний элемент
+            nextCursor = nextItem?.updatedAt.toISOString() || null;
+        }
 
-        return NextResponse.json({ chats });
+        // Маппим данные в нужный формат для клиента
+        const chats = prismaChats.map(chat => {
+            const isParticipant = chat.participants.some(p => p.userId === currentUser.id);
+            // Если админ не является участником, не показываем ему счетчик непрочитанных (Ghost Mode)
+            // Иначе он будет видеть все сообщения как непрочитанные
+            if (!isParticipant && isAdmin) {
+                chat._count.messages = 0;
+            }
+            return toChatListItem(chat, currentUser.id);
+        });
+
+        return NextResponse.json({ chats, nextCursor });
     } catch (error) {
         return handleApiError(error);
     }

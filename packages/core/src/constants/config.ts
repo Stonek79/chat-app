@@ -23,7 +23,7 @@ export const DEFAULT_SERVER_CONFIG = {
     REDIS_HOST: 'localhost',
     REDIS_PORT: 6379,
     REDIS_SOCKET_NOTIFICATIONS_CHANNEL: 'socket-notifications',
-    SOCKET_PORT: 3001,
+    SOCKET_PORT: 3003,
     SOCKET_CORS_ORIGIN: 'http://localhost:3000',
     MEDIA_PUBLIC_URL: 'http://localhost:8080/media',
 } as const;

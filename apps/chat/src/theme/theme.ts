@@ -18,6 +18,16 @@ declare module '@mui/material/styles' {
     interface ThemeOptions {
         chat?: ChatColors;
     }
+
+    interface PaletteOptions {
+        msgOutBg?: string;
+        msgInBg?: string;
+    }
+
+    interface Palette {
+        msgOutBg: string;
+        msgInBg: string;
+    }
 }
 
 const roboto = Roboto({

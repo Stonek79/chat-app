@@ -49,6 +49,7 @@ export const jwtAuthMiddleware = async (socket: AppSocket, next: (err?: Error) =
         socket.data.user = {
             ...userPayload,
             avatarUrl: userPayload.avatarUrl ?? null, // Конвертируем undefined в null
+            exp: (payload.exp as number) || 0,
         };
 
         console.log(`✅ [AuthMiddleware] User ${userPayload.username} authenticated.`);

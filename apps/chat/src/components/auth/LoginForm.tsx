@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useSWRConfig } from 'swr';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +9,7 @@ import {
     loginSchema,
     LoginCredentials,
     API_AUTH_ME_ROUTE,
+    CHAT_PAGE_ROUTE,
 } from '@chat-app/core';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -19,6 +21,7 @@ import { useState } from 'react';
 
 export function LoginForm({ registrationSuccess }: { registrationSuccess: boolean }) {
     const { mutate } = useSWRConfig();
+    const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {
@@ -39,6 +42,7 @@ export function LoginForm({ registrationSuccess }: { registrationSuccess: boolea
             const authResponse = await login(data);
 
             await mutate(API_AUTH_ME_ROUTE, authResponse, { revalidate: false });
+            router.push(CHAT_PAGE_ROUTE);
         } catch (error: unknown) {
             // Обрабатываем общую ошибку, не привязанную к полю
             const errorMessage =

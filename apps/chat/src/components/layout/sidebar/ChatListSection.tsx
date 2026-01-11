@@ -19,6 +19,8 @@ interface ChatListSectionProps {
     selectedChatId: string | null;
     onChatSelect: (chatId: string) => void;
     filter: 'group' | 'direct' | 'all';
+    onCreateGroup?: () => void;
+    onCreateDirect?: () => void;
 }
 
 export function ChatListSection({
@@ -26,6 +28,8 @@ export function ChatListSection({
     selectedChatId,
     onChatSelect,
     filter,
+    onCreateGroup,
+    onCreateDirect,
 }: ChatListSectionProps) {
     const { chats, isLoading, error } = useChatStore();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -39,13 +43,13 @@ export function ChatListSection({
     };
 
     const handleCreateGroup = () => {
-        console.log('Create group chat');
         handleMenuClose();
+        onCreateGroup?.();
     };
 
     const handleCreateDirect = () => {
-        console.log('Create direct chat');
         handleMenuClose();
+        onCreateDirect?.();
     };
 
     const filteredChats = useMemo(() => {

@@ -1,16 +1,46 @@
 'use client';
 
-import { List, ListItemAvatar, Avatar, ListItemText, Typography, Box, Badge } from '@mui/material';
+import { List, ListItemAvatar, Avatar, ListItemText, Typography, Box, Badge, CircularProgress } from '@mui/material';
 import type { ChatListItem } from '@chat-app/core';
 import { formatTimestamp } from '@/utils';
+import { useEffect, useRef } from 'react';
 
 interface ChatListProps {
     chats: ChatListItem[];
     activeChatId: string | null;
     onChatSelect: (chatId: string) => void;
+    hasMore: boolean;
+    isLoadingMore: boolean;
+    onLoadMore: () => void;
 }
 
-export const ChatList = ({ chats, activeChatId, onChatSelect }: ChatListProps) => {
+export const ChatList = ({
+    chats,
+    activeChatId,
+    onChatSelect,
+    hasMore,
+    isLoadingMore,
+    onLoadMore,
+}: ChatListProps) => {
+    const observerTarget = useRef(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0]?.isIntersecting && hasMore && !isLoadingMore) {
+                    onLoadMore();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, isLoadingMore, onLoadMore]);
+
     return (
         <List sx={{ p: 1 }}>
             {chats.map(chat => {
@@ -84,6 +114,21 @@ export const ChatList = ({ chats, activeChatId, onChatSelect }: ChatListProps) =
                     </Box>
                 );
             })}
+            
+            {/* Sentinel for Infinite Scroll */}
+            {(hasMore || isLoadingMore) && (
+                <Box
+                    ref={observerTarget}
+                    sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        p: 1,
+                        minHeight: '40px',
+                    }}
+                >
+                    {isLoadingMore && <CircularProgress size={24} />}
+                </Box>
+            )}
         </List>
     );
 };

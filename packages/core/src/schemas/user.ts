@@ -109,3 +109,9 @@ export const verifyEmailSchema = z.object({
 export const resendVerificationSchema = z.object({
     email: z.email(VALIDATION_MESSAGES.INVALID_EMAIL),
 });
+
+export const searchUsersSchema = z.object({
+    query: z.string().optional(),
+    limit: z.number().int().min(1).max(100).default(100),
+    excludeUserIds: z.array(z.string().cuid()).optional(),
+});

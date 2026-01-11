@@ -1,6 +1,6 @@
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 import type { Socket as ClientSocket } from 'socket.io-client';
-import type { SessionData, ChatWithDetails, MessagePayload, ClientMessageAction } from '@chat-app/core';
+import type { SessionData, ChatWithDetails, DisplayMessage, MessagePayload, ClientMessageAction } from '@chat-app/core';
 import type {
     SocketUserPresencePayload,
     GeneralSocketErrorPayload,
@@ -9,6 +9,9 @@ import type {
     ClientSendMessagePayload,
     MessageDeletedPayload,
     MessageEditedPayload,
+    ChatDeletedPayload,
+    UserStatusChangedPayload,
+    TypingPayload,
 } from './payloads';
 
 // Импорт констант событий Socket.IO
@@ -17,6 +20,7 @@ import {
     SERVER_EVENT_USER_LEFT,
     SERVER_EVENT_RECEIVE_MESSAGE,
     SERVER_EVENT_CHAT_CREATED,
+    SERVER_EVENT_CHAT_DELETED,
     SERVER_EVENT_MESSAGES_READ,
     SERVER_EVENT_MESSAGE_DELETED,
     CLIENT_EVENT_JOIN_CHAT,
@@ -25,6 +29,11 @@ import {
     CLIENT_EVENT_EDIT_MESSAGE,
     CLIENT_EVENT_MARK_AS_READ,
     SERVER_EVENT_MESSAGE_EDITED,
+    SERVER_EVENT_USER_STATUS_CHANGED,
+    SERVER_EVENT_TYPING_STARTED,
+    SERVER_EVENT_TYPING_STOPPED,
+    CLIENT_EVENT_TYPING,
+    SERVER_EVENT_MESSAGE_PURGED,
 } from '../constants/events';
 
 /**
@@ -38,13 +47,18 @@ export interface SocketData {
  * @description Типы событий, которые сервер отправляет клиенту.
  */
 export interface ServerToClientEvents {
-    [SERVER_EVENT_CHAT_CREATED]: (chat: ChatWithDetails) => void;
-    [SERVER_EVENT_MESSAGE_DELETED]: (payload: MessageDeletedPayload) => void;
-    [SERVER_EVENT_RECEIVE_MESSAGE]: (payload: MessagePayload) => void;
-    [SERVER_EVENT_MESSAGES_READ]: (payload: MessagesReadPayload) => void;
     [SERVER_EVENT_USER_JOINED]: (payload: SocketUserPresencePayload) => void;
     [SERVER_EVENT_USER_LEFT]: (payload: SocketUserPresencePayload) => void;
+    [SERVER_EVENT_RECEIVE_MESSAGE]: (message: DisplayMessage) => void;
+    [SERVER_EVENT_CHAT_CREATED]: (chat: ChatWithDetails) => void;
+    [SERVER_EVENT_MESSAGES_READ]: (payload: MessagesReadPayload) => void;
+    [SERVER_EVENT_MESSAGE_DELETED]: (payload: MessageDeletedPayload) => void;
     [SERVER_EVENT_MESSAGE_EDITED]: (payload: MessageEditedPayload) => void;
+    [SERVER_EVENT_MESSAGE_PURGED]: (payload: { chatId: string }) => void;
+    [SERVER_EVENT_CHAT_DELETED]: (payload: ChatDeletedPayload) => void;
+    [SERVER_EVENT_USER_STATUS_CHANGED]: (payload: UserStatusChangedPayload) => void;
+    [SERVER_EVENT_TYPING_STARTED]: (payload: TypingPayload) => void;
+    [SERVER_EVENT_TYPING_STOPPED]: (payload: TypingPayload) => void;
     error: (payload: GeneralSocketErrorPayload) => void;
 }
 
@@ -55,15 +69,15 @@ export interface ClientToServerEvents {
     [CLIENT_EVENT_JOIN_CHAT]: (chatId: string) => void;
     [CLIENT_EVENT_LEAVE_CHAT]: (chatId: string) => void;
     [CLIENT_EVENT_SEND_MESSAGE]: (
-        message: ClientSendMessagePayload,
-        ack?: (response: SendMessageAckResponse) => void
+        payload: ClientSendMessagePayload,
+        callback?: (response: SendMessageAckResponse) => void
     ) => void;
     [CLIENT_EVENT_EDIT_MESSAGE]: (payload: {
-        chatId: string;
         messageId: string;
-        action: ClientMessageAction;
+        content: string;
     }) => void;
     [CLIENT_EVENT_MARK_AS_READ]: (payload: { chatId: string; messageId: string }) => void;
+    [CLIENT_EVENT_TYPING]: (payload: { chatId: string; isTyping: boolean }) => void;
 }
 
 /**

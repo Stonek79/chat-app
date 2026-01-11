@@ -3,3 +3,4 @@ export * from './config';
 export * from './auth';
 export * from './redis';
 export * from './utils';
+export * from './presence';

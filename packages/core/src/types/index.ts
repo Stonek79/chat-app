@@ -5,3 +5,4 @@ export * from './chat';
 export * from './message';
 export * from './common';
 export * from './notification';
+export * from './media';

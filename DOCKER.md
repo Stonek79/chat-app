@@ -10,7 +10,7 @@
 graph TD;
     subgraph "Docker-контейнеры"
         A[Next.js App <br/> Port: 3000]
-        B[Socket.IO Server <br/> Port: 3001]
+        B[Socket.IO Server <br/> Port: 3003]
         C[PostgreSQL <br/> Port: 5432] // <-- ДОБАВИТЬ ЭТОТ СЕРВИС
         D[Redis <br/> Port: 6379]
         E[MinIO Storage <br/> Port: 9000/9001] // <-- УТОЧНИТЬ ПОРТЫ

@@ -75,7 +75,7 @@ async function verifyAndDecodeToken(token: string): Promise<UserJWTPayload | nul
  * @param request - Объект NextRequest, представляющий входящий запрос.
  * @returns Промис, который разрешается объектом NextResponse, указывающим, как обработать запрос (например, продолжить, перенаправить).
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname, search, origin } = request.nextUrl;
     const token = request.cookies.get(AUTH_TOKEN_COOKIE_NAME)?.value;
 

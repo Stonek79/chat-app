@@ -17,7 +17,7 @@ import {
 } from '@chat-app/socket-shared';
 import AddIcon from '@mui/icons-material/Add';
 import { Box, CircularProgress, Fab, Menu, MenuItem } from '@mui/material';
-import { Sidebar } from '@/components';
+import { Sidebar, CreateGroupDialog, CreatePrivateChatDialog } from '@/components';
 import { useMobile } from '@/hooks';
 import useChatStore from '@/store/chatStore';
 import { shallow } from 'zustand/vanilla/shallow';
@@ -42,6 +42,8 @@ export function ChatAppLayout({ children }: AdaptiveChatLayoutProps) {
     const pathname = usePathname();
     const router = useRouter();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [createGroupDialogOpen, setCreateGroupDialogOpen] = useState(false);
+    const [createPrivateChatDialogOpen, setCreatePrivateChatDialogOpen] = useState(false);
     const { addChat, updateLastMessage, incrementUnreadCount } = useChatStore(
         state => ({
             addChat: state.addChat,
@@ -110,18 +112,21 @@ export function ChatAppLayout({ children }: AdaptiveChatLayoutProps) {
     }, []);
 
     const handleCreateGroup = useCallback(() => {
-        console.log('Create group chat from FAB');
         handleMenuClose();
-    }, []);
+        setCreateGroupDialogOpen(true);
+    }, [handleMenuClose]);
 
     const handleCreateDirect = useCallback(() => {
-        console.log('Create direct chat from FAB');
         handleMenuClose();
-    }, []);
+        setCreatePrivateChatDialogOpen(true);
+    }, [handleMenuClose]);
 
-    const handleChatSelect = useCallback((chatId: string) => {
-        router.push(`${CHAT_PAGE_ROUTE}/${chatId}`);
-    }, []);
+    const handleChatSelect = useCallback(
+        (chatId: string) => {
+            router.push(`${CHAT_PAGE_ROUTE}/${chatId}`);
+        },
+        [router]
+    );
 
     if (isLoading) {
         // Пока идет проверка, показываем лоадер
@@ -160,7 +165,12 @@ export function ChatAppLayout({ children }: AdaptiveChatLayoutProps) {
         return (
             <>
                 {isChatRootPage ? (
-                    <Sidebar currentUser={user} onChatSelect={handleChatSelect} />
+                    <Sidebar
+                        currentUser={user}
+                        onChatSelect={handleChatSelect}
+                        onCreateGroup={handleCreateGroup}
+                        onCreateDirect={handleCreateDirect}
+                    />
                 ) : (
                     <>{children}</>
                 )}
@@ -192,28 +202,77 @@ export function ChatAppLayout({ children }: AdaptiveChatLayoutProps) {
                         </Menu>
                     </>
                 )}
+                <CreateGroupDialog
+                    open={createGroupDialogOpen}
+                    onClose={() => setCreateGroupDialogOpen(false)}
+                />
+                <CreatePrivateChatDialog
+                    open={createPrivateChatDialogOpen}
+                    onClose={() => setCreatePrivateChatDialogOpen(false)}
+                />
             </>
         );
     }
 
     // На десктопе всегда отображается двухпанельный макет.
     return (
-        <Box sx={{ display: 'flex', height: '100%' }}>
-            <Box
-                component="aside"
-                sx={{
-                    width: sidebarWidth,
-                    flexShrink: 0,
-                    height: '100%',
-                    borderRight: '1px solid',
-                    borderColor: 'divider',
-                }}
-            >
-                <Sidebar currentUser={user} onChatSelect={handleChatSelect} />
+        <>
+            <Box sx={{ display: 'flex', height: '100%' }}>
+                <Box
+                    component="aside"
+                    sx={{
+                        width: sidebarWidth,
+                        flexShrink: 0,
+                        height: '100%',
+                        borderRight: '1px solid',
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Sidebar
+                        currentUser={user}
+                        onChatSelect={handleChatSelect}
+                        onCreateGroup={handleCreateGroup}
+                        onCreateDirect={handleCreateDirect}
+                    />
+                </Box>
+                <Box component="main" sx={{ flexGrow: 1, height: '100%', position: 'relative' }}>
+                    {children}
+                    {isChatRootPage && (
+                        <Fab
+                            color="primary"
+                            aria-label="создать"
+                            sx={{ position: 'absolute', bottom: 24, right: 24 }}
+                            onClick={handleMenuOpen}
+                        >
+                            <AddIcon />
+                        </Fab>
+                    )}
+                    <Menu
+                        anchorEl={anchorEl}
+                        open={Boolean(anchorEl)}
+                        onClose={handleMenuClose}
+                        anchorOrigin={{
+                            vertical: 'top',
+                            horizontal: 'right',
+                        }}
+                        transformOrigin={{
+                            vertical: 'bottom',
+                            horizontal: 'right',
+                        }}
+                    >
+                        <MenuItem onClick={handleCreateGroup}>Создать канал</MenuItem>
+                        <MenuItem onClick={handleCreateDirect}>Начать переписку</MenuItem>
+                    </Menu>
+                </Box>
             </Box>
-            <Box component="main" sx={{ flexGrow: 1, height: '100%' }}>
-                {children}
-            </Box>
-        </Box>
+            <CreateGroupDialog
+                open={createGroupDialogOpen}
+                onClose={() => setCreateGroupDialogOpen(false)}
+            />
+            <CreatePrivateChatDialog
+                open={createPrivateChatDialogOpen}
+                onClose={() => setCreatePrivateChatDialogOpen(false)}
+            />
+        </>
     );
 }

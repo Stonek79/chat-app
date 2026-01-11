@@ -1,3 +1,5 @@
+'use client';
+
 import NextLink from 'next/link';
 import { LOGIN_PAGE_ROUTE, REGISTER_PAGE_ROUTE } from '@chat-app/core';
 import Box from '@mui/material/Box';

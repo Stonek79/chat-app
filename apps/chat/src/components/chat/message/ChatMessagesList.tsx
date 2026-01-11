@@ -135,6 +135,7 @@ export const ChatMessagesList = memo(function ChatMessagesList({
                                 isGroupChat={participants.length > 2}
                                 isNextMessageFromSameSender={isNextMessageFromSameSender}
                                 participantsCount={participants.length}
+                                isGlobalAdmin={currentUser?.role === 'ADMIN'}
                             />
                         </div>
                     );
